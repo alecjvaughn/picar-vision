@@ -21,16 +21,16 @@
     - [x] Write Python unit tests for sensor parsing
 
 ## Phase 3: WebSocket Gateway Implementation
-- [ ] Task: Setup WebSocket Server
-    - [ ] Integrate a Python WebSocket library (e.g., `websockets` or `fastapi` with `uvicorn`)
-    - [ ] Define JSON schemas for incoming commands (steering, throttle, pan, tilt)
-    - [ ] Define JSON schemas for outgoing telemetry (sensor data)
-- [ ] Task: Integrate I/O Parts into the Server Loop
-    - [ ] Create the main event loop that continuously reads camera frames/sensors
-    - [ ] Broadcast MJPEG frames and telemetry data to connected clients
-    - [ ] Route incoming commands to the motor/servo abstractions
-- [ ] Task: Client Testing
-    - [ ] Write a simple Python WebSocket client script to verify two-way communication and low latency (<100ms)
+- [x] Task: Setup WebSocket Server
+    - [x] Integrate a Python WebSocket library (e.g., `websockets` or `fastapi` with `uvicorn`)
+    - [x] Define JSON schemas for incoming commands (steering, throttle, pan, tilt)
+    - [x] Define JSON schemas for outgoing telemetry (sensor data)
+- [x] Task: Integrate I/O Parts into the Server Loop
+    - [x] Create the main event loop that continuously reads camera frames/sensors
+    - [x] Broadcast MJPEG frames and telemetry data to connected clients
+    - [x] Route incoming commands to the motor/servo abstractions
+- [x] Task: Client Testing
+    - [x] Write a simple Python WebSocket client script to verify two-way communication and low latency (<100ms)
 
 ## Phase 4: Edge Deployment and Verification
 - [ ] Task: Deploy to Raspberry Pi

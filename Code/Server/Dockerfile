@@ -19,5 +19,5 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-# Temporarily point to the legacy main.py until we implement the WebSocket server
-CMD ["python3", "main.py"]
+# Run the websocket gateway server
+CMD ["python3", "gateway.py"]
