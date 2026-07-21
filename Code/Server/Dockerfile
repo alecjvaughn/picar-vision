@@ -2,20 +2,23 @@ FROM arm64v8/python:3.11-slim
 
 WORKDIR /app
 
-# Install system dependencies for hardware I/O, OpenCV, and camera
+# Install system dependencies and pre-compiled Python packages via apt-get
+# This completely eliminates long build times for OpenCV and Numpy
 RUN apt-get update && apt-get install -y \
-    build-essential \
+    python3-opencv \
+    python3-numpy \
+    python3-smbus \
+    python3-spidev \
+    python3-gpiozero \
+    python3-websockets \
     python3-dev \
-    i2c-tools \
-    libglib2.0-0 \
-    libsm6 \
-    libxext6 \
-    libxrender-dev \
-    libcamera-dev \
+    build-essential \
     && rm -rf /var/lib/apt/lists/*
 
+# Install remaining pure python or specific hardware packages
+# --break-system-packages is required on Debian Bookworm (Python 3.11) when not using venv
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir --break-system-packages -r requirements.txt
 
 COPY . .
 
