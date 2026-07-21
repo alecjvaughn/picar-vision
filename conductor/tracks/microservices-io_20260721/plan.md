@@ -10,15 +10,15 @@
     - [x] Mount necessary hardware devices (e.g., `/dev/i2c-1`, `/dev/video0`) to the container
 
 ## Phase 2: Hardware I/O Abstraction (Donkeycar compatibility)
-- [ ] Task: Abstract Motor & Servo Controls
-    - [ ] Create a `parts` package mimicking the Donkeycar parts structure
-    - [ ] Implement the PCA9685/L298N actuator class with `run()` method for steering/throttle
-    - [ ] Implement camera pan/tilt servo class
-    - [ ] Write Python unit tests for motor/servo inputs (mocking hardware)
-- [ ] Task: Abstract Sensor & Camera Ingestion
-    - [ ] Implement the OpenCV camera class to continuously capture frames
-    - [ ] Implement sensor classes (Ultrasonic, Photoresistor) to poll and yield data
-    - [ ] Write Python unit tests for sensor parsing
+- [x] Task: Abstract Motor & Servo Controls
+    - [x] Create a `parts` package mimicking the Donkeycar parts structure
+    - [x] Implement the PCA9685/L298N actuator class with `run()` method for steering/throttle
+    - [x] Implement camera pan/tilt servo class
+    - [x] Write Python unit tests for motor/servo inputs (mocking hardware)
+- [x] Task: Abstract Sensor & Camera Ingestion
+    - [x] Implement the OpenCV camera class to continuously capture frames
+    - [x] Implement sensor classes (Ultrasonic, Photoresistor) to poll and yield data
+    - [x] Write Python unit tests for sensor parsing
 
 ## Phase 3: WebSocket Gateway Implementation
 - [ ] Task: Setup WebSocket Server
