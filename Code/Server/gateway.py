@@ -49,7 +49,7 @@ async def telemetry_loop(websocket):
             break
         except Exception as e:
             print(f"Telemetry error: {e}")
-            break
+            await asyncio.sleep(0.5)
 
 async def command_loop(websocket):
     """Receive commands from the client and route to actuators."""
