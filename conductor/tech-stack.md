@@ -1,8 +1,9 @@
 # Tech Stack: Picar-Vision
 
-## Legacy / Base Code (Raspberry Pi & Existing Client)
+## Edge Backend (Raspberry Pi)
 - **Language:** Python
-- **Framework:** OpenCV (legacy Haar Cascades), raw TCP sockets.
+- **Framework:** OpenCV, WebSockets (for low-latency telemetry/commands), Donkeycar-compatible Parts architecture.
+- **Deployment:** Docker / Docker Compose
 - **Hardware:** Raspberry Pi 3B+, Freenove 4WD Smart Car Kit.
 
 ## Modern Application Stack (Desktop & Cloud/Edge)
