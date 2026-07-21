@@ -33,10 +33,10 @@
     - [x] Write a simple Python WebSocket client script to verify two-way communication and low latency (<100ms)
 
 ## Phase 4: Edge Deployment and Verification
-- [ ] Task: Deploy to Raspberry Pi
-    - [ ] Deploy the `docker-compose` stack to the Raspberry Pi
-    - [ ] Verify container health and logs
-- [ ] Task: Live I/O Testing
-    - [ ] Test live motor control via the test client
-    - [ ] Test live camera feed streaming via the test client
-    - [ ] Validate end-to-end latency is under 100ms
+- [x] Task: Deploy to Raspberry Pi
+    - [x] Deploy the `docker-compose` stack to the Raspberry Pi
+    - [x] Verify container health and logs
+- [x] Task: Live I/O Testing
+    - [x] Test live motor control via the test client
+    - [x] Test live camera feed streaming via the test client
+    - [x] Validate end-to-end latency is under 100ms
