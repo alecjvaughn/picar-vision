@@ -1,10 +1,12 @@
-FROM arm64v8/python:3.11-slim
+FROM arm64v8/debian:bookworm-slim
 
 WORKDIR /app
 
 # Install system dependencies and pre-compiled Python packages via apt-get
 # This completely eliminates long build times for OpenCV and Numpy
 RUN apt-get update && apt-get install -y \
+    python3 \
+    python3-pip \
     python3-opencv \
     python3-numpy \
     python3-smbus \
