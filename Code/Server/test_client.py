@@ -34,7 +34,9 @@ async def send_commands(websocket):
             break
 
 async def main():
-    uri = "ws://localhost:8765"
+    import sys
+    host = sys.argv[1] if len(sys.argv) > 1 else "localhost"
+    uri = f"ws://{host}:8765"
     async with websockets.connect(uri) as websocket:
         print(f"Connected to WebSocket gateway at {uri}")
         listen_task = asyncio.create_task(listen(websocket))
