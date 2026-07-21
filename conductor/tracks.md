@@ -8,5 +8,5 @@ This file tracks all major development tracks for the `picar-vision` project. Ea
 
 ---
 
-- [ ] **Track: Deploy the microservices architecture and test I/O for the Raspberry Pi.**
+- [x] **Track: Deploy the microservices architecture and test I/O for the Raspberry Pi.**
 *Link: [./tracks/microservices-io_20260721/](./tracks/microservices-io_20260721/)*
