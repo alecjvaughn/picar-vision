@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+  picar-backend:
+    build:
+      context: ./Code/Server
+      dockerfile: Dockerfile
+    container_name: picar-backend
+    privileged: true
+    devices:
+      - "/dev/i2c-1:/dev/i2c-1"
+      - "/dev/video0:/dev/video0"
+      - "/dev/mem:/dev/mem"
+      - "/dev/gpiomem:/dev/gpiomem"
+    ports:
+      - "8765:8765" # WebSocket server port
+    restart: unless-stopped

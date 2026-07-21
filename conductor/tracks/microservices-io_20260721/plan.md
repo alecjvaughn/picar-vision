@@ -1,13 +1,13 @@
 # Implementation Plan: Microservices Deployment & Pi I/O Testing
 
 ## Phase 1: Dockerize the Legacy Python Codebase
-- [ ] Task: Create Dockerfile for the Raspberry Pi environment
-    - [ ] Write a base `Dockerfile` targeting the Pi (e.g., `arm64v8/python:3.11-slim`)
-    - [ ] Install necessary system dependencies (e.g., OpenCV, I2C/GPIO tools)
-    - [ ] Create `requirements.txt` based on the legacy codebase needs
-- [ ] Task: Setup Docker Compose
-    - [ ] Create `docker-compose.yml` to orchestrate the backend services
-    - [ ] Mount necessary hardware devices (e.g., `/dev/i2c-1`, `/dev/video0`) to the container
+- [x] Task: Create Dockerfile for the Raspberry Pi environment
+    - [x] Write a base `Dockerfile` targeting the Pi (e.g., `arm64v8/python:3.11-slim`)
+    - [x] Install necessary system dependencies (e.g., OpenCV, I2C/GPIO tools)
+    - [x] Create `requirements.txt` based on the legacy codebase needs
+- [x] Task: Setup Docker Compose
+    - [x] Create `docker-compose.yml` to orchestrate the backend services
+    - [x] Mount necessary hardware devices (e.g., `/dev/i2c-1`, `/dev/video0`) to the container
 
 ## Phase 2: Hardware I/O Abstraction (Donkeycar compatibility)
 - [ ] Task: Abstract Motor & Servo Controls
