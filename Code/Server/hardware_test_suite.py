@@ -50,34 +50,37 @@ async def send_command(websocket, steering, throttle, pan, tilt, duration, name)
         await websocket.send(json.dumps(command))
         await asyncio.sleep(0.1)
 
-async def run_hardware_sequence(websocket):
+async def run_hardware_sequence(websocket, component=None):
     """Runs through a defined test sequence for the motors and servos."""
     print("\n--- Starting Hardware Test Sequence ---")
     await asyncio.sleep(2) # Wait for video to initialize
 
-    # Motor Tests
-    await send_command(websocket, 0.0, 0.5, 0.0, 0.0, 2.0, "Forward")
-    await send_command(websocket, 0.0, -0.5, 0.0, 0.0, 2.0, "Backward")
-    await send_command(websocket, 0.5, 0.0, 0.0, 0.0, 2.0, "Turn Right")
-    await send_command(websocket, -0.5, 0.0, 0.0, 0.0, 2.0, "Turn Left")
-    await send_command(websocket, 0.0, 0.0, 0.0, 0.0, 1.0, "Stop Motors")
+    if component in [None, "motor"]:
+        # Motor Tests
+        await send_command(websocket, 0.0, 0.5, 0.0, 0.0, 2.0, "Forward")
+        await send_command(websocket, 0.0, -0.5, 0.0, 0.0, 2.0, "Backward")
+        await send_command(websocket, 0.5, 0.0, 0.0, 0.0, 2.0, "Turn Right")
+        await send_command(websocket, -0.5, 0.0, 0.0, 0.0, 2.0, "Turn Left")
+        await send_command(websocket, 0.0, 0.0, 0.0, 0.0, 1.0, "Stop Motors")
 
-    # Servo Tests
-    await send_command(websocket, 0.0, 0.0, 0.5, 0.0, 1.5, "Pan Right")
-    await send_command(websocket, 0.0, 0.0, -0.5, 0.0, 1.5, "Pan Left")
-    await send_command(websocket, 0.0, 0.0, 0.0, 0.5, 1.5, "Tilt Up")
-    await send_command(websocket, 0.0, 0.0, 0.0, -0.5, 1.5, "Tilt Down")
-    await send_command(websocket, 0.0, 0.0, 0.0, 0.0, 1.0, "Center Servos")
+    if component in [None, "servo"]:
+        # Servo Tests
+        await send_command(websocket, 0.0, 0.0, 0.5, 0.0, 1.5, "Pan Right")
+        await send_command(websocket, 0.0, 0.0, -0.5, 0.0, 1.5, "Pan Left")
+        await send_command(websocket, 0.0, 0.0, 0.0, 0.5, 1.5, "Tilt Up")
+        await send_command(websocket, 0.0, 0.0, 0.0, -0.5, 1.5, "Tilt Down")
+        await send_command(websocket, 0.0, 0.0, 0.0, 0.0, 1.0, "Center Servos")
 
     print("\n--- Hardware Test Sequence Complete ---")
     print("Keep the window open to view telemetry/video. Press 'q' in the video window or Ctrl+C to exit.")
 
 async def main():
     if len(sys.argv) < 2:
-        print("Usage: python3 hardware_test_suite.py <PI_IP_ADDRESS>")
+        print("Usage: python3 hardware_test_suite.py <PI_IP_ADDRESS> [motor|servo|sensors|camera]")
         sys.exit(1)
         
     host = sys.argv[1]
+    component = sys.argv[2].lower() if len(sys.argv) > 2 else None
     uri = f"ws://{host}:8765"
     
     print(f"Connecting to Picar-Vision Gateway at {uri}...")
@@ -87,7 +90,7 @@ async def main():
             
             # Start telemetry/video loop and command sequence concurrently
             display_task = asyncio.create_task(display_video_and_telemetry(websocket))
-            sequence_task = asyncio.create_task(run_hardware_sequence(websocket))
+            sequence_task = asyncio.create_task(run_hardware_sequence(websocket, component))
             
             await asyncio.wait([display_task, sequence_task], return_when=asyncio.FIRST_EXCEPTION)
     except Exception as e:
