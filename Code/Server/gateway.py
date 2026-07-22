@@ -10,16 +10,22 @@ from parts.camera import OpenCVCameraPart
 
 # Initialize parts
 motor, servo, ultrasonic, photo, camera = None, None, None, None, None
+print("Initializing Motor...")
 try: motor = FreenoveMotorPart()
 except Exception as e: print(f"Motor error: {e}")
+print("Initializing Servo...")
 try: servo = FreenoveServoPart()
 except Exception as e: print(f"Servo error: {e}")
+print("Initializing Ultrasonic...")
 try: ultrasonic = UltrasonicPart()
 except Exception as e: print(f"Ultrasonic error: {e}")
+print("Initializing Photoresistor...")
 try: photo = PhotoresistorPart()
 except Exception as e: print(f"Photoresistor error: {e}")
+print("Initializing Camera...")
 try: camera = OpenCVCameraPart(width=320, height=240, framerate=15)
 except Exception as e: print(f"Camera error: {e}")
+print("All parts initialization attempted.")
 
 async def telemetry_loop(websocket):
     """Continuously send telemetry (sensor data & camera frames) to client."""

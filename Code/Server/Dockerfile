@@ -1,6 +1,7 @@
 FROM arm64v8/debian:bookworm-slim
 
 WORKDIR /app
+ENV PYTHONUNBUFFERED=1
 
 # Install system dependencies and pre-compiled Python packages via apt-get
 # This completely eliminates long build times for OpenCV and Numpy
