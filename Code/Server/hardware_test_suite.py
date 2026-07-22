@@ -7,33 +7,42 @@ import numpy as np
 import time
 import sys
 
-async def display_video_and_telemetry(websocket):
+async def display_video_and_telemetry(websocket, component):
     """Listens for telemetry and displays the video stream and sensor data."""
     try:
         while True:
             message = await websocket.recv()
             data = json.loads(message)
             if data.get("type") == "telemetry":
-                # Print telemetry
-                dist = data.get("distance")
-                ll = data.get("left_light")
-                rl = data.get("right_light")
-                print(f"Sensors -> Distance: {dist} cm | Light: L={ll}V R={rl}V", end='\r')
+                # Print telemetry only if relevant
+                if component in ["all", "sensors", "photoresistor", "ultrasonic"]:
+                    dist = data.get("distance")
+                    ll = data.get("left_light")
+                    rl = data.get("right_light")
+                    
+                    if component == "photoresistor":
+                        print(f"Photoresistor -> L={ll}V R={rl}V\033[K", end='\r')
+                    elif component == "ultrasonic":
+                        print(f"Ultrasonic -> Distance: {dist} cm\033[K", end='\r')
+                    else:
+                        print(f"Sensors -> Distance: {dist} cm | Light: L={ll}V R={rl}V\033[K", end='\r')
 
-                # Display video
-                frame_b64 = data.get("frame")
-                if frame_b64:
-                    frame_bytes = base64.b64decode(frame_b64)
-                    np_arr = np.frombuffer(frame_bytes, np.uint8)
-                    frame = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
-                    if frame is not None:
-                        cv2.imshow("Picar-Vision Camera Stream", frame)
-                        if cv2.waitKey(1) & 0xFF == ord('q'):
-                            break
+                # Display video only if relevant
+                if component in ["all", "camera"]:
+                    frame_b64 = data.get("frame")
+                    if frame_b64:
+                        frame_bytes = base64.b64decode(frame_b64)
+                        np_arr = np.frombuffer(frame_bytes, np.uint8)
+                        frame = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
+                        if frame is not None:
+                            cv2.imshow("Picar-Vision Camera Stream", frame)
+                            if cv2.waitKey(1) & 0xFF == ord('q'):
+                                break
     except Exception as e:
         print(f"\nTelemetry stopped: {e}")
     finally:
-        cv2.destroyAllWindows()
+        if component in ["all", "camera"]:
+            cv2.destroyAllWindows()
 
 async def send_command(websocket, steering=0.0, throttle=0.0, pan=0.0, tilt=0.0, buzzer=False, led="off", duration=1.0, name="Command"):
     print(f"\n[Testing] {name} (duration: {duration}s)")
@@ -120,7 +129,7 @@ async def main():
             print("Connected! Initializing test suite...")
             
             # Start telemetry/video loop and command sequence concurrently
-            display_task = asyncio.create_task(display_video_and_telemetry(websocket))
+            display_task = asyncio.create_task(display_video_and_telemetry(websocket, component))
             sequence_task = asyncio.create_task(run_hardware_sequence(websocket, component))
             
             await asyncio.wait([display_task, sequence_task], return_when=asyncio.FIRST_EXCEPTION)
