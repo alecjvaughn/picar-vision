@@ -84,12 +84,19 @@ async def run_hardware_sequence(websocket, component=None):
         await asyncio.sleep(1)
 
 async def main():
-    if len(sys.argv) < 2:
-        print("Usage: python3 hardware_test_suite.py <PI_IP_ADDRESS> [motor|servo|sensors|camera]")
-        sys.exit(1)
-        
-    host = sys.argv[1]
-    component = sys.argv[2].lower() if len(sys.argv) > 2 else None
+    import argparse
+    parser = argparse.ArgumentParser(description="Picar-Vision Hardware Test Suite")
+    parser.add_argument("host", help="IP address or hostname of the Raspberry Pi")
+    parser.add_argument(
+        "--component", 
+        choices=["all", "motor", "servo", "camera", "sensors"], 
+        default="all",
+        help="Specify which component to test (default: all)"
+    )
+    args = parser.parse_args()
+
+    host = args.host
+    component = None if args.component == "all" else args.component
     uri = f"ws://{host}:8765"
     
     print(f"Connecting to Picar-Vision Gateway at {uri}...")
