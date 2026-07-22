@@ -54,3 +54,38 @@ class FreenoveServoPart:
 
     def shutdown(self):
         pass
+
+class FreenoveBuzzerPart:
+    """
+    Donkeycar-compatible part for the Freenove buzzer.
+    Inputs: state (bool)
+    """
+    def __init__(self):
+        from buzzer import Buzzer
+        self.buzzer = Buzzer()
+
+    def run(self, state):
+        self.buzzer.set_state(bool(state))
+
+    def shutdown(self):
+        self.buzzer.close()
+
+class FreenoveLedPart:
+    """
+    Donkeycar-compatible part for the Freenove LEDs.
+    Inputs: mode (string) e.g., 'blink', 'rainbow', 'off'
+    """
+    def __init__(self):
+        from led import Led
+        self.led = Led()
+
+    def run(self, mode):
+        if mode == 'blink':
+            self.led.colorBlink(1, 100)
+        elif mode == 'rainbow':
+            self.led.rainbowCycle(20)
+        else:
+            self.led.colorBlink(0)
+
+    def shutdown(self):
+        self.led.colorBlink(0)

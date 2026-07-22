@@ -35,14 +35,16 @@ async def display_video_and_telemetry(websocket):
     finally:
         cv2.destroyAllWindows()
 
-async def send_command(websocket, steering, throttle, pan, tilt, duration, name):
+async def send_command(websocket, steering=0.0, throttle=0.0, pan=0.0, tilt=0.0, buzzer=False, led="off", duration=1.0, name="Command"):
     print(f"\n[Testing] {name} (duration: {duration}s)")
     command = {
         "type": "command",
         "steering": steering,
         "throttle": throttle,
         "pan": pan,
-        "tilt": tilt
+        "tilt": tilt,
+        "buzzer": buzzer,
+        "led": led
     }
     
     start = time.time()
@@ -51,28 +53,41 @@ async def send_command(websocket, steering, throttle, pan, tilt, duration, name)
         await asyncio.sleep(0.1)
 
 async def run_hardware_sequence(websocket, component=None):
-    """Runs through a defined test sequence for the motors and servos."""
+    """Runs through a defined test sequence for the components."""
     print("\n--- Starting Hardware Test Sequence ---")
     await asyncio.sleep(2) # Wait for video to initialize
 
     if component in [None, "motor"]:
         # Motor Tests
-        await send_command(websocket, 0.0, 0.5, 0.0, 0.0, 2.0, "Forward")
-        await send_command(websocket, 0.0, -0.5, 0.0, 0.0, 2.0, "Backward")
-        await send_command(websocket, 0.5, 0.0, 0.0, 0.0, 2.0, "Turn Right")
-        await send_command(websocket, -0.5, 0.0, 0.0, 0.0, 2.0, "Turn Left")
-        await send_command(websocket, 0.0, 0.0, 0.0, 0.0, 1.0, "Stop Motors")
+        await send_command(websocket, throttle=0.5, duration=2.0, name="Forward")
+        await send_command(websocket, throttle=-0.5, duration=2.0, name="Backward")
+        await send_command(websocket, steering=0.5, duration=2.0, name="Turn Right")
+        await send_command(websocket, steering=-0.5, duration=2.0, name="Turn Left")
+        await send_command(websocket, duration=1.0, name="Stop Motors")
 
     if component in [None, "servo"]:
         # Servo Tests
-        await send_command(websocket, 0.0, 0.0, 0.5, 0.0, 1.5, "Pan Right")
-        await send_command(websocket, 0.0, 0.0, -0.5, 0.0, 1.5, "Pan Left")
-        await send_command(websocket, 0.0, 0.0, 0.0, 0.5, 1.5, "Tilt Up")
-        await send_command(websocket, 0.0, 0.0, 0.0, -0.5, 1.5, "Tilt Down")
-        await send_command(websocket, 0.0, 0.0, 0.0, 0.0, 1.0, "Center Servos")
+        await send_command(websocket, pan=0.5, duration=1.5, name="Pan Right")
+        await send_command(websocket, pan=-0.5, duration=1.5, name="Pan Left")
+        await send_command(websocket, tilt=0.5, duration=1.5, name="Tilt Up")
+        await send_command(websocket, tilt=-0.5, duration=1.5, name="Tilt Down")
+        await send_command(websocket, duration=1.0, name="Center Servos")
 
-    if component in ["camera", "sensors"]:
-        print("Testing camera/sensors only. Keep window open to view telemetry/video. Press 'q' or Ctrl+C to exit.")
+    if component in [None, "buzzer"]:
+        # Buzzer Tests
+        await send_command(websocket, buzzer=True, duration=0.5, name="Buzzer ON")
+        await send_command(websocket, buzzer=False, duration=0.5, name="Buzzer OFF")
+        await send_command(websocket, buzzer=True, duration=0.5, name="Buzzer ON")
+        await send_command(websocket, buzzer=False, duration=0.5, name="Buzzer OFF")
+
+    if component in [None, "led"]:
+        # LED Tests
+        await send_command(websocket, led="blink", duration=3.0, name="LED Blink")
+        await send_command(websocket, led="rainbow", duration=3.0, name="LED Rainbow")
+        await send_command(websocket, led="off", duration=1.0, name="LED OFF")
+
+    if component in ["camera", "sensors", "photoresistor", "ultrasonic"]:
+        print(f"Testing {component} only. Keep window open to view telemetry/video. Press 'q' or Ctrl+C to exit.")
         while True:
             await asyncio.sleep(1)
             
@@ -88,8 +103,8 @@ async def main():
     parser = argparse.ArgumentParser(description="Picar-Vision Hardware Test Suite")
     parser.add_argument("host", help="IP address or hostname of the Raspberry Pi")
     parser.add_argument(
-        "--component", 
-        choices=["all", "motor", "servo", "camera", "sensors"], 
+        "-c", "--component", 
+        choices=["all", "motor", "servo", "camera", "sensors", "buzzer", "led", "photoresistor", "ultrasonic"], 
         default="all",
         help="Specify which component to test (default: all)"
     )

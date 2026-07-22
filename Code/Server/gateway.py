@@ -4,18 +4,24 @@ import json
 import base64
 import cv2
 import time
-from parts.actuators import FreenoveMotorPart, FreenoveServoPart
+from parts.actuators import FreenoveMotorPart, FreenoveServoPart, FreenoveBuzzerPart, FreenoveLedPart
 from parts.sensors import UltrasonicPart, PhotoresistorPart
 from parts.camera import OpenCVCameraPart
 
 # Initialize parts
-motor, servo, ultrasonic, photo, camera = None, None, None, None, None
+motor, servo, buzzer, led, ultrasonic, photo, camera = None, None, None, None, None, None, None
 print("Initializing Motor...")
 try: motor = FreenoveMotorPart()
 except Exception as e: print(f"Motor error: {e}")
 print("Initializing Servo...")
 try: servo = FreenoveServoPart()
 except Exception as e: print(f"Servo error: {e}")
+print("Initializing Buzzer...")
+try: buzzer = FreenoveBuzzerPart()
+except Exception as e: print(f"Buzzer error: {e}")
+print("Initializing LED...")
+try: led = FreenoveLedPart()
+except Exception as e: print(f"LED error: {e}")
 print("Initializing Ultrasonic...")
 try: ultrasonic = UltrasonicPart()
 except Exception as e: print(f"Ultrasonic error: {e}")
@@ -70,9 +76,13 @@ async def command_loop(websocket):
                 throttle = data.get("throttle", 0.0)
                 pan = data.get("pan", 0.0)
                 tilt = data.get("tilt", 0.0)
+                buzzer_state = data.get("buzzer", False)
+                led_mode = data.get("led", "off")
                 
                 if motor: motor.run(steering, throttle)
                 if servo: servo.run(pan, tilt)
+                if buzzer: buzzer.run(buzzer_state)
+                if led: led.run(led_mode)
         except Exception as e:
             print(f"Command error: {e}")
 
@@ -105,6 +115,8 @@ if __name__ == "__main__":
     finally:
         if motor: motor.shutdown()
         if servo: servo.shutdown()
+        if buzzer: buzzer.shutdown()
+        if led: led.shutdown()
         if ultrasonic: ultrasonic.shutdown()
         if photo: photo.shutdown()
         if camera: camera.shutdown()
