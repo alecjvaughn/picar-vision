@@ -71,8 +71,17 @@ async def run_hardware_sequence(websocket, component=None):
         await send_command(websocket, 0.0, 0.0, 0.0, -0.5, 1.5, "Tilt Down")
         await send_command(websocket, 0.0, 0.0, 0.0, 0.0, 1.0, "Center Servos")
 
+    if component in ["camera", "sensors"]:
+        print("Testing camera/sensors only. Keep window open to view telemetry/video. Press 'q' or Ctrl+C to exit.")
+        while True:
+            await asyncio.sleep(1)
+            
     print("\n--- Hardware Test Sequence Complete ---")
     print("Keep the window open to view telemetry/video. Press 'q' in the video window or Ctrl+C to exit.")
+    
+    # Wait indefinitely so the telemetry task can keep running
+    while True:
+        await asyncio.sleep(1)
 
 async def main():
     if len(sys.argv) < 2:
