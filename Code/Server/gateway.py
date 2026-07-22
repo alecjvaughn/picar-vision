@@ -9,25 +9,28 @@ from parts.sensors import UltrasonicPart, PhotoresistorPart
 from parts.camera import OpenCVCameraPart
 
 # Initialize parts
-try:
-    motor = FreenoveMotorPart()
-    servo = FreenoveServoPart()
-    ultrasonic = UltrasonicPart()
-    photo = PhotoresistorPart()
-    camera = OpenCVCameraPart(width=320, height=240, framerate=15) # lower res for network speed
-except Exception as e:
-    print(f"Error initializing parts (hardware may not be present): {e}")
+motor, servo, ultrasonic, photo, camera = None, None, None, None, None
+try: motor = FreenoveMotorPart()
+except Exception as e: print(f"Motor error: {e}")
+try: servo = FreenoveServoPart()
+except Exception as e: print(f"Servo error: {e}")
+try: ultrasonic = UltrasonicPart()
+except Exception as e: print(f"Ultrasonic error: {e}")
+try: photo = PhotoresistorPart()
+except Exception as e: print(f"Photoresistor error: {e}")
+try: camera = OpenCVCameraPart(width=320, height=240, framerate=15)
+except Exception as e: print(f"Camera error: {e}")
 
 async def telemetry_loop(websocket):
     """Continuously send telemetry (sensor data & camera frames) to client."""
     while True:
         try:
             # Gather sensors
-            distance = ultrasonic.run()
-            left_light, right_light = photo.run()
+            distance = ultrasonic.run() if ultrasonic else 0.0
+            left_light, right_light = photo.run() if photo else (0.0, 0.0)
             
             # Gather frame and encode to JPEG
-            frame = camera.run()
+            frame = camera.run() if camera else None
             frame_b64 = ""
             if frame is not None:
                 ret, buffer = cv2.imencode('.jpg', frame, [int(cv2.IMWRITE_JPEG_QUALITY), 60])
@@ -62,8 +65,8 @@ async def command_loop(websocket):
                 pan = data.get("pan", 0.0)
                 tilt = data.get("tilt", 0.0)
                 
-                motor.run(steering, throttle)
-                servo.run(pan, tilt)
+                if motor: motor.run(steering, throttle)
+                if servo: servo.run(pan, tilt)
         except Exception as e:
             print(f"Command error: {e}")
 
@@ -94,8 +97,8 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         pass
     finally:
-        motor.shutdown()
-        servo.shutdown()
-        ultrasonic.shutdown()
-        photo.shutdown()
-        camera.shutdown()
+        if motor: motor.shutdown()
+        if servo: servo.shutdown()
+        if ultrasonic: ultrasonic.shutdown()
+        if photo: photo.shutdown()
+        if camera: camera.shutdown()

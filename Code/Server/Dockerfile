@@ -12,6 +12,8 @@ RUN apt-get update && apt-get install -y \
     python3-smbus \
     python3-spidev \
     python3-gpiozero \
+    python3-lgpio \
+    python3-rpi-lgpio \
     python3-websockets \
     python3-dev \
     build-essential \
