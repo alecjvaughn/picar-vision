@@ -78,6 +78,7 @@ class FreenoveLedPart:
     def __init__(self):
         from led import Led
         self.led = Led()
+        self.led.colorBlink(0) # Ensure they are off when initialized
 
     def run(self, mode):
         if mode == 'blink':

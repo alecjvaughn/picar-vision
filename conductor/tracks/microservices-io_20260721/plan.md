@@ -42,10 +42,10 @@
     - [x] Validate end-to-end latency is under 100ms
 
 ## Phase 5: User-Review (Automated Hardware Test Suite)
-- [ ] Task: Implement Automated Hardware Test Suite
-    - [ ] Create `hardware_test_suite.py` on the Mac client side
-    - [ ] Accept host IP as a command-line parameter
-    - [ ] Sequence 1: Test Motors (Forward, Backward, Left, Right)
-    - [ ] Sequence 2: Test Servos (Pan/Tilt sweeps)
-    - [ ] Sequence 3: Test Sensors (Poll and log ultrasonic and photoresistor)
-    - [ ] Sequence 4: Video Feed (Receive MJPEG frames and display them using cv2 on the Mac)
+- [x] Task: Implement Automated Hardware Test Suite
+    - [x] Create `hardware_test_suite.py` on the Mac client side
+    - [x] Accept host IP as a command-line parameter
+    - [x] Sequence 1: Test Motors (Forward, Backward, Left, Right)
+    - [x] Sequence 2: Test Servos (Pan/Tilt sweeps)
+    - [x] Sequence 3: Test Sensors (Poll and log ultrasonic and photoresistor)
+    - [x] Sequence 4: Video Feed (Receive MJPEG frames and display them using cv2 on the Mac)
