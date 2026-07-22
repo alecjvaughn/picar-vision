@@ -43,7 +43,8 @@ class OpenCVCameraPart:
                     frame = self.picam2.capture_array()
                     # Convert RGB (picamera2) to BGR (opencv)
                     self.frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
-                except Exception:
+                except Exception as e:
+                    print(f"Picamera2 capture error: {e}")
                     time.sleep(0.01)
             elif self.cap:
                 ret, frame = self.cap.read()
