@@ -71,56 +71,57 @@
   let cameraX = $derived(Math.max(-1, Math.min(1, (arrRight ? 1 : 0) - (arrLeft ? 1 : 0) + camDragX)));
   let cameraY = $derived(Math.max(-1, Math.min(1, (arrDown ? 1 : 0) - (arrUp ? 1 : 0) + camDragY)));
 
-  function handlePointerDown(e: PointerEvent, stick: 'L' | 'R') {
-    const base = e.currentTarget as HTMLElement;
-    base.setPointerCapture(e.pointerId);
-    
-    function move(e: PointerEvent) {
-      const rect = base.getBoundingClientRect();
-      const radius = rect.width / 2;
-      const cx = rect.left + radius;
-      const cy = rect.top + radius;
-      
-      let dx = (e.clientX - cx) / radius;
-      let dy = (e.clientY - cy) / radius;
-      
-      const distance = Math.sqrt(dx*dx + dy*dy);
-      if (distance > 1) {
-        dx /= distance;
-        dy /= distance;
-      }
-      
-      if (stick === 'L') {
-        dragX = dx;
-        dragY = dy;
-      } else {
-        camDragX = dx;
-        camDragY = dy;
-      }
+  // Multi-touch tracking for joysticks
+  let activePointers: Record<number, 'L' | 'R'> = {};
+
+  function handlePointerDown(e: PointerEvent, stick: 'L'|'R') {
+    activePointers[e.pointerId] = stick;
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    updateJoystick(e, stick);
+  }
+
+  function handlePointerMove(e: PointerEvent) {
+    const stick = activePointers[e.pointerId];
+    if (stick) {
+      updateJoystick(e, stick);
+    }
+  }
+
+  function handlePointerUp(e: PointerEvent) {
+    const stick = activePointers[e.pointerId];
+    if (stick) {
+      (e.target as HTMLElement).releasePointerCapture(e.pointerId);
+      delete activePointers[e.pointerId];
+      if (stick === 'L') { dragX = 0; dragY = 0; }
+      if (stick === 'R') { camDragX = 0; camDragY = 0; }
       sendKeyboardCommand();
     }
+  }
+
+  function updateJoystick(e: PointerEvent, stick: 'L'|'R') {
+    const base = (e.currentTarget as HTMLElement);
+    const rect = base.getBoundingClientRect();
+    const radius = rect.width / 2;
+    const cx = rect.left + radius;
+    const cy = rect.top + radius;
     
-    function up(e: PointerEvent) {
-      base.releasePointerCapture(e.pointerId);
-      base.removeEventListener('pointermove', move);
-      base.removeEventListener('pointerup', up);
-      base.removeEventListener('pointercancel', up);
-      
-      if (stick === 'L') {
-        dragX = 0;
-        dragY = 0;
-      } else {
-        camDragX = 0;
-        camDragY = 0;
-      }
-      sendKeyboardCommand();
+    let dx = (e.clientX - cx) / radius;
+    let dy = (e.clientY - cy) / radius;
+    
+    const distance = Math.sqrt(dx*dx + dy*dy);
+    if (distance > 1) {
+      dx /= distance;
+      dy /= distance;
     }
     
-    base.addEventListener('pointermove', move);
-    base.addEventListener('pointerup', up);
-    base.addEventListener('pointercancel', up);
-    
-    move(e);
+    if (stick === 'L') {
+      dragX = dx;
+      dragY = dy;
+    } else {
+      camDragX = dx;
+      camDragY = dy;
+    }
+    sendKeyboardCommand();
   }
 
   async function sendKeyboardCommand(includeCamera = false) {
@@ -432,13 +433,13 @@
           <div class="joysticks-row">
             <div class="joystick-wrapper">
               <span class="stick-label">L (WASD)</span>
-              <div class="joystick-base" onpointerdown={(e) => handlePointerDown(e, 'L')} style="cursor: crosshair; touch-action: none;">
+              <div class="joystick-base" onpointerdown={(e) => handlePointerDown(e, 'L')} onpointermove={handlePointerMove} onpointerup={handlePointerUp} onpointercancel={handlePointerUp} style="cursor: crosshair; touch-action: none;">
                 <div class="joystick-stick" style="transform: translate({joystickX * 20}px, {joystickY * 20}px)"></div>
               </div>
             </div>
             <div class="joystick-wrapper">
               <span class="stick-label">R (Camera)</span>
-              <div class="joystick-base" onpointerdown={(e) => handlePointerDown(e, 'R')} style="cursor: crosshair; touch-action: none;">
+              <div class="joystick-base" onpointerdown={(e) => handlePointerDown(e, 'R')} onpointermove={handlePointerMove} onpointerup={handlePointerUp} onpointercancel={handlePointerUp} style="cursor: crosshair; touch-action: none;">
                 <div class="joystick-stick" style="transform: translate({cameraX * 20}px, {cameraY * 20}px)"></div>
               </div>
             </div>
