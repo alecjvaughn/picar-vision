@@ -3,7 +3,7 @@ pub mod websocket;
 
 use std::sync::atomic::{AtomicU32, Ordering};
 use tokio::sync::Mutex;
-use websocket::{connect_to_pi, send_pi_command, WsState};
+use websocket::{connect_to_pi, disconnect_from_pi, send_pi_command, WsState};
 
 pub struct ControlSettings {
     pub motor_speed: AtomicU32,
@@ -36,6 +36,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             connect_to_pi,
             send_pi_command,
+            disconnect_from_pi,
             update_settings
         ])
         .setup(|app| {

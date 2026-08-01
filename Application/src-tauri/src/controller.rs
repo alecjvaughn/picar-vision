@@ -19,6 +19,11 @@ pub fn start_controller_loop(app_handle: AppHandle) {
         let mut active_gamepad = None;
         let mut pan: f32 = 0.0;
         let mut tilt: f32 = 0.0;
+        
+        let mut last_throttle = 0.0;
+        let mut last_steering = 0.0;
+        let mut last_pan = 0.0;
+        let mut last_tilt = 0.0;
 
         loop {
             // Examine new events
@@ -68,7 +73,10 @@ pub fn start_controller_loop(app_handle: AppHandle) {
                 let servo_sens = settings.servo_sensitivity.load(Ordering::Relaxed) as f32 / 100.0;
 
                 let mut throttle = gamepad.value(Axis::LeftStickY);
-                let mut steering = gamepad.value(Axis::RightStickX);
+                let mut steering = gamepad.value(Axis::LeftStickX);
+                
+                let r_pan = gamepad.value(Axis::RightStickX);
+                let r_tilt = gamepad.value(Axis::RightStickY);
 
                 // Apply deadzone to prevent drift and runaway motors
                 if throttle.abs() < 0.20 {
@@ -81,38 +89,57 @@ pub fn start_controller_loop(app_handle: AppHandle) {
                 throttle *= motor_scale;
                 steering *= motor_scale;
 
-                // Handle continuous D-Pad servo movement
-                let step = 5.0 * servo_sens; // max 5 degrees per loop
-                if gamepad.is_pressed(Button::DPadLeft) {
-                    pan += step;
-                }
-                if gamepad.is_pressed(Button::DPadRight) {
+                // Handle continuous D-Pad and Right Stick servo movement
+                let step = 0.05 * servo_sens; // max 5% per loop (-1.0 to 1.0 range)
+                
+                let dpad_x = gamepad.axis_data(Axis::DPadX).map(|a| a.value()).unwrap_or(0.0);
+                let dpad_y = gamepad.axis_data(Axis::DPadY).map(|a| a.value()).unwrap_or(0.0);
+
+                if gamepad.is_pressed(Button::DPadLeft) || dpad_x < -0.5 {
                     pan -= step;
                 }
-                if gamepad.is_pressed(Button::DPadUp) {
+                if gamepad.is_pressed(Button::DPadRight) || dpad_x > 0.5 {
+                    pan += step;
+                }
+                if gamepad.is_pressed(Button::DPadUp) || dpad_y > 0.5 {
+                    tilt += step; // Inverted: UP is positive tilt
+                }
+                if gamepad.is_pressed(Button::DPadDown) || dpad_y < -0.5 {
                     tilt -= step;
                 }
-                if gamepad.is_pressed(Button::DPadDown) {
-                    tilt += step;
+                
+                // Add right joystick analog values if outside deadzone
+                if r_pan.abs() > 0.20 {
+                    pan += step * r_pan; // Right is positive pan
+                }
+                if r_tilt.abs() > 0.20 {
+                    tilt += step * r_tilt; // Up is positive tilt (assuming Gilrs Y is positive UP)
                 }
 
-                // Clamp pan and tilt (-90 to 90 degrees typically)
-                pan = pan.clamp(-90.0, 90.0);
-                tilt = tilt.clamp(-90.0, 90.0);
+                // Clamp pan and tilt (-1.0 to 1.0 instead of degrees)
+                pan = pan.clamp(-1.0, 1.0);
+                tilt = tilt.clamp(-1.0, 1.0);
 
-                // Send the command
-                let cmd = json!({
-                    "type": "command",
-                    "throttle": throttle,
-                    "steering": steering,
-                    "pan": pan,
-                    "tilt": tilt
-                });
+                if throttle != last_throttle || steering != last_steering || pan != last_pan || tilt != last_tilt {
+                    // Send the command
+                    let cmd = json!({
+                        "type": "command",
+                        "throttle": throttle,
+                        "steering": steering,
+                        "pan": pan,
+                        "tilt": tilt
+                    });
 
-                let state = app_handle.state::<WsState>();
-                let tx_lock = state.tx.blocking_lock();
-                if let Some(tx) = &*tx_lock {
-                    let _ = tx.blocking_send(cmd.to_string());
+                    let state = app_handle.state::<WsState>();
+                    let tx_lock = state.tx.blocking_lock();
+                    if let Some(tx) = &*tx_lock {
+                        let _ = tx.blocking_send(cmd.to_string());
+                    }
+
+                    last_throttle = throttle;
+                    last_steering = steering;
+                    last_pan = pan;
+                    last_tilt = tilt;
                 }
             }
 

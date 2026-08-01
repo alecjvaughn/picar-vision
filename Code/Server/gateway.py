@@ -33,6 +33,9 @@ try: camera = OpenCVCameraPart(width=320, height=240, framerate=15)
 except Exception as e: print(f"Camera error: {e}")
 print("All parts initialization attempted.")
 
+current_pan = 0.0
+current_tilt = 0.0
+
 async def telemetry_loop(websocket):
     """Continuously send telemetry (sensor data & camera frames) to client."""
     while True:
@@ -74,13 +77,18 @@ async def command_loop(websocket):
             if data.get("type") == "command":
                 steering = data.get("steering", 0.0)
                 throttle = data.get("throttle", 0.0)
-                pan = data.get("pan", 0.0)
-                tilt = data.get("tilt", 0.0)
+                
+                global current_pan, current_tilt
+                if "pan" in data:
+                    current_pan = data["pan"]
+                if "tilt" in data:
+                    current_tilt = data["tilt"]
+                    
                 buzzer_state = data.get("buzzer", False)
                 led_mode = data.get("led", "off")
                 
                 if motor: motor.run(steering, throttle)
-                if servo: servo.run(pan, tilt)
+                if servo: servo.run(current_pan, current_tilt)
                 if buzzer: buzzer.run(buzzer_state)
                 if led: led.run(led_mode)
         except Exception as e:
@@ -101,6 +109,10 @@ async def handler(websocket):
         task.cancel()
         
     print(f"Client disconnected: {websocket.remote_address}")
+    
+    # Safety: Stop motors on disconnect
+    if motor:
+        motor.run(0.0, 0.0)
 
 async def main():
     print("Starting WebSocket gateway on ws://0.0.0.0:8765")

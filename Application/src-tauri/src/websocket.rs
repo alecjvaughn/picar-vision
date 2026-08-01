@@ -9,7 +9,11 @@ pub struct WsState {
 }
 
 #[tauri::command]
-pub async fn connect_to_pi(ip: String, app: AppHandle, state: State<'_, WsState>) -> Result<(), String> {
+pub async fn connect_to_pi(
+    ip: String,
+    app: AppHandle,
+    state: State<'_, WsState>,
+) -> Result<(), String> {
     let url = format!("ws://{}:8765", ip);
 
     let (ws_stream, _) = connect_async(&url).await.map_err(|e| e.to_string())?;
@@ -31,7 +35,7 @@ pub async fn connect_to_pi(ip: String, app: AppHandle, state: State<'_, WsState>
     // Task for reading messages
     tokio::spawn(async move {
         app.emit("ws-connected", ()).unwrap();
-        
+
         while let Some(Ok(msg)) = read.next().await {
             match msg {
                 Message::Text(text) => {
@@ -51,7 +55,7 @@ pub async fn connect_to_pi(ip: String, app: AppHandle, state: State<'_, WsState>
                 _ => {}
             }
         }
-        
+
         app.emit("ws-disconnected", ()).unwrap();
     });
 
@@ -66,4 +70,11 @@ pub async fn send_pi_command(command: String, state: State<'_, WsState>) -> Resu
     } else {
         Err("Not connected".into())
     }
+}
+
+#[tauri::command]
+pub async fn disconnect_from_pi(state: State<'_, WsState>) -> Result<(), String> {
+    let mut tx_lock = state.tx.lock().await;
+    *tx_lock = None;
+    Ok(())
 }

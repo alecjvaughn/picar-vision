@@ -20,12 +20,19 @@
   let motorSpeed = $state(100);
   let servoSensitivity = $state(50);
   
-  // Gamepad State for UI (updated from Rust events)
-  let dpadUp = $state(false);
-  let dpadDown = $state(false);
-  let dpadLeft = $state(false);
-  let dpadRight = $state(false);
-  let btnSnap = $state(false);
+  // Gamepad State for UI (visual only)
+  let gpDpadUp = $state(false);
+  let gpDpadDown = $state(false);
+  let gpDpadLeft = $state(false);
+  let gpDpadRight = $state(false);
+  let gpBtnSnap = $state(false);
+
+  // Keyboard Arrow State (drives camera)
+  let arrUp = $state(false);
+  let arrDown = $state(false);
+  let arrLeft = $state(false);
+  let arrRight = $state(false);
+  let arrSnap = $state(false);
 
   // Computed Joystick Position from WASD + Drag
   let dragX = $state(0.0);
@@ -33,11 +40,11 @@
   let joystickX = $derived(Math.max(-1, Math.min(1, (keyD ? 1 : 0) - (keyA ? 1 : 0) + dragX)));
   let joystickY = $derived(Math.max(-1, Math.min(1, (keyS ? 1 : 0) - (keyW ? 1 : 0) + dragY)));
 
-  // Computed Camera Stick from DPad + Drag
+  // Computed Camera Stick from Arrows + Drag
   let camDragX = $state(0.0);
   let camDragY = $state(0.0);
-  let cameraX = $derived(Math.max(-1, Math.min(1, (dpadRight ? 1 : 0) - (dpadLeft ? 1 : 0) + camDragX)));
-  let cameraY = $derived(Math.max(-1, Math.min(1, (dpadDown ? 1 : 0) - (dpadUp ? 1 : 0) + camDragY)));
+  let cameraX = $derived(Math.max(-1, Math.min(1, (arrRight ? 1 : 0) - (arrLeft ? 1 : 0) + camDragX)));
+  let cameraY = $derived(Math.max(-1, Math.min(1, (arrDown ? 1 : 0) - (arrUp ? 1 : 0) + camDragY)));
 
   function handlePointerDown(e: PointerEvent, stick: 'L' | 'R') {
     const base = e.currentTarget as HTMLElement;
@@ -106,11 +113,11 @@
       steering: steering
     };
 
-    if (cameraX !== 0 || cameraY !== 0 || btnSnap) {
+    if (cameraX !== 0 || cameraY !== 0 || arrSnap) {
       const camScale = servoSensitivity / 100.0;
       payload.pan = cameraX * camScale;
-      payload.tilt = cameraY * camScale;
-      if (btnSnap) {
+      payload.tilt = -cameraY * camScale; // Inverted: UP is positive tilt
+      if (arrSnap) {
         payload.pan = 0.0;
         payload.tilt = 0.0;
       }
@@ -134,20 +141,48 @@
   }
 
   function handleKeydown(e: KeyboardEvent) {
+    const target = e.target as HTMLElement;
+    if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA')) return;
+
     let changed = false;
+    // WASD
     if (e.key === 'w' || e.key === 'W') { if (!keyW) { keyW = true; changed = true; } }
     if (e.key === 'a' || e.key === 'A') { if (!keyA) { keyA = true; changed = true; } }
     if (e.key === 's' || e.key === 'S') { if (!keyS) { keyS = true; changed = true; } }
     if (e.key === 'd' || e.key === 'D') { if (!keyD) { keyD = true; changed = true; } }
+    
+    // Arrow Keys (prevent scrolling and drive camera)
+    if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+      e.preventDefault();
+      if (e.key === 'ArrowUp') { if (!arrUp) { arrUp = true; changed = true; } }
+      if (e.key === 'ArrowDown') { if (!arrDown) { arrDown = true; changed = true; } }
+      if (e.key === 'ArrowLeft') { if (!arrLeft) { arrLeft = true; changed = true; } }
+      if (e.key === 'ArrowRight') { if (!arrRight) { arrRight = true; changed = true; } }
+    }
+    
     if (changed) sendKeyboardCommand();
   }
 
   function handleKeyup(e: KeyboardEvent) {
+    const target = e.target as HTMLElement;
+    if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA')) return;
+
     let changed = false;
+    // WASD
     if (e.key === 'w' || e.key === 'W') { if (keyW) { keyW = false; changed = true; } }
     if (e.key === 'a' || e.key === 'A') { if (keyA) { keyA = false; changed = true; } }
     if (e.key === 's' || e.key === 'S') { if (keyS) { keyS = false; changed = true; } }
     if (e.key === 'd' || e.key === 'D') { if (keyD) { keyD = false; changed = true; } }
+    
+    // Arrow Keys
+    if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+      e.preventDefault();
+      if (e.key === 'ArrowUp') { if (arrUp) { arrUp = false; changed = true; } }
+      if (e.key === 'ArrowDown') { if (arrDown) { arrDown = false; changed = true; } }
+      if (e.key === 'ArrowLeft') { if (arrLeft) { arrLeft = false; changed = true; } }
+      if (e.key === 'ArrowRight') { if (arrRight) { arrRight = false; changed = true; } }
+    }
+    
     if (changed) sendKeyboardCommand();
   }
 
@@ -161,9 +196,23 @@
         alert(e);
       }
     } else {
-      // Disconnect is not fully implemented in the backend yet.
-      // For now, we will just alert the user.
-      alert("Disconnect not implemented yet! Please restart the app.");
+      await disconnect();
+    }
+  }
+
+  async function disconnect() {
+    try {
+      // Stop the motors before dropping the connection
+      await invoke('send_pi_command', { command: JSON.stringify({
+        type: 'command',
+        throttle: 0.0,
+        steering: 0.0
+      })});
+      await invoke('disconnect_from_pi');
+      connected = false;
+      videoBlobUrl = "";
+    } catch (e) {
+      console.error("Failed to disconnect:", e);
     }
   }
 
@@ -180,6 +229,8 @@
       }
     }));
     unlistens.push(await listen('telemetry', (event: any) => {
+      connected = true; // Recover connection state if UI hot-reloads
+      
       distance = event.payload.distance?.toFixed(1) || "--";
       light = event.payload.left_light?.toFixed(1) || "--";
       
@@ -190,11 +241,11 @@
     
     // Listen for Gamepad inputs from Rust for the UI
     unlistens.push(await listen('gamepad-input', (event: any) => {
-      if (event.payload.button === 'DpadUp') dpadUp = event.payload.pressed;
-      if (event.payload.button === 'DpadDown') dpadDown = event.payload.pressed;
-      if (event.payload.button === 'DpadLeft') dpadLeft = event.payload.pressed;
-      if (event.payload.button === 'DpadRight') dpadRight = event.payload.pressed;
-      if (event.payload.button === 'RightTrigger2') btnSnap = event.payload.pressed; // R1
+      if (event.payload.button === 'DpadUp') gpDpadUp = event.payload.pressed;
+      if (event.payload.button === 'DpadDown') gpDpadDown = event.payload.pressed;
+      if (event.payload.button === 'DpadLeft') gpDpadLeft = event.payload.pressed;
+      if (event.payload.button === 'DpadRight') gpDpadRight = event.payload.pressed;
+      if (event.payload.button === 'RightTrigger2') gpBtnSnap = event.payload.pressed; // R1
     }));
     
     // Setup keyboard listeners
@@ -315,11 +366,11 @@
           <!-- Servos (D-Pad & Snap) -->
           <div class="dpad-grid">
             <div></div>
-            <div class="v-key" class:active={dpadUp}>▲</div>
-            <div class="v-key btn-snap" class:active={btnSnap}>R1</div>
-            <div class="v-key" class:active={dpadLeft}>◀</div>
-            <div class="v-key" class:active={dpadDown}>▼</div>
-            <div class="v-key" class:active={dpadRight}>▶</div>
+            <div class="v-key" class:active={gpDpadUp || arrUp} onmousedown={() => { arrUp = true; sendKeyboardCommand(); }} onmouseup={() => { arrUp = false; sendKeyboardCommand(); }} onmouseleave={() => { if(arrUp) { arrUp = false; sendKeyboardCommand(); } }}>▲</div>
+            <div class="v-key btn-snap" class:active={gpBtnSnap || arrSnap} onmousedown={() => { arrSnap = true; sendKeyboardCommand(); }} onmouseup={() => { arrSnap = false; sendKeyboardCommand(); }} onmouseleave={() => { if(arrSnap) { arrSnap = false; sendKeyboardCommand(); } }}>R1</div>
+            <div class="v-key" class:active={gpDpadLeft || arrLeft} onmousedown={() => { arrLeft = true; sendKeyboardCommand(); }} onmouseup={() => { arrLeft = false; sendKeyboardCommand(); }} onmouseleave={() => { if(arrLeft) { arrLeft = false; sendKeyboardCommand(); } }}>◀</div>
+            <div class="v-key" class:active={gpDpadDown || arrDown} onmousedown={() => { arrDown = true; sendKeyboardCommand(); }} onmouseup={() => { arrDown = false; sendKeyboardCommand(); }} onmouseleave={() => { if(arrDown) { arrDown = false; sendKeyboardCommand(); } }}>▼</div>
+            <div class="v-key" class:active={gpDpadRight || arrRight} onmousedown={() => { arrRight = true; sendKeyboardCommand(); }} onmouseup={() => { arrRight = false; sendKeyboardCommand(); }} onmouseleave={() => { if(arrRight) { arrRight = false; sendKeyboardCommand(); } }}>▶</div>
           </div>
         </div>
       </div>
