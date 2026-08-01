@@ -717,16 +717,27 @@
     align-items: center;
     margin-bottom: 0.75rem;
     font-weight: 500;
+    gap: 1rem;
+    font-size: clamp(0.75rem, 1.5vw, 1rem);
   }
 
   .sensor-row:last-child {
     margin-bottom: 0;
   }
 
+  .sensor-row span:first-child {
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
   .value {
     color: var(--accent-primary);
     font-family: monospace;
-    font-size: 1.1rem;
+    font-size: clamp(0.8rem, 2vw, 1.1rem);
+    text-align: right;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .disconnected {
