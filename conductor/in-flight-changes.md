@@ -31,3 +31,9 @@ This document tracks changes requested by the user and implemented during active
   - Commits: `e19a0a1`
 - **Joystick Calibration:** Created an interactive modal in Svelte and backing Rust state to capture, persist, and apply individual stick deadzones and center offsets to prevent drift.
   - Commits: `e19a0a1`
+
+## Track: `gamepad-switcher_20260801`
+
+### 1. Gamepad & Hardware (Features)
+- **Gamepad Switcher Modal:** Added a 'Find' controllers UI modal and `gilrs` backend logic to list all detected gamepads, force an active gamepad, or ignore all gamepads without unpairing them at the OS level.
+  - Commits: `0678a19`
