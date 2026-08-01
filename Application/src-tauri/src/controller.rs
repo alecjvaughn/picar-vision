@@ -1,7 +1,7 @@
 use crate::websocket::WsState;
 use crate::ControlSettings;
 use gilrs::{Axis, Button, Event, EventType, Gilrs};
-use serde_json::json;
+use serde_json::{json, Value};
 use std::sync::atomic::Ordering;
 use std::time::Duration;
 use tauri::{AppHandle, Emitter, Manager};
@@ -121,14 +121,19 @@ pub fn start_controller_loop(app_handle: AppHandle) {
                 tilt = tilt.clamp(-1.0, 1.0);
 
                 if throttle != last_throttle || steering != last_steering || pan != last_pan || tilt != last_tilt {
-                    // Send the command
-                    let cmd = json!({
-                        "type": "command",
-                        "throttle": throttle,
-                        "steering": steering,
-                        "pan": pan,
-                        "tilt": tilt
-                    });
+                    // Send the command, omitting pan/tilt if they haven't changed
+                    // This prevents the gamepad from clobbering the web UI's camera state when only driving
+                    let mut cmd_map = serde_json::Map::new();
+                    cmd_map.insert("type".to_string(), json!("command"));
+                    cmd_map.insert("throttle".to_string(), json!(throttle));
+                    cmd_map.insert("steering".to_string(), json!(steering));
+
+                    if pan != last_pan || tilt != last_tilt {
+                        cmd_map.insert("pan".to_string(), json!(pan));
+                        cmd_map.insert("tilt".to_string(), json!(tilt));
+                    }
+                    
+                    let cmd = Value::Object(cmd_map);
 
                     let state = app_handle.state::<WsState>();
                     let tx_lock = state.tx.blocking_lock();

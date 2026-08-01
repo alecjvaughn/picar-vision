@@ -385,11 +385,11 @@
           <!-- Driving (WASD) -->
           <div class="dpad-grid">
             <div></div>
-            <div class="v-key" class:active={keyW} onmousedown={() => simulateKey('w', true)} onmouseup={() => simulateKey('w', false)} onmouseleave={() => simulateKey('w', false)}>W</div>
+            <div class="v-key" class:active={keyW} onpointerdown={() => simulateKey('w', true)} onpointerup={() => simulateKey('w', false)} onpointerleave={() => simulateKey('w', false)}>W</div>
             <div></div>
-            <div class="v-key" class:active={keyA} onmousedown={() => simulateKey('a', true)} onmouseup={() => simulateKey('a', false)} onmouseleave={() => simulateKey('a', false)}>A</div>
-            <div class="v-key" class:active={keyS} onmousedown={() => simulateKey('s', true)} onmouseup={() => simulateKey('s', false)} onmouseleave={() => simulateKey('s', false)}>S</div>
-            <div class="v-key" class:active={keyD} onmousedown={() => simulateKey('d', true)} onmouseup={() => simulateKey('d', false)} onmouseleave={() => simulateKey('d', false)}>D</div>
+            <div class="v-key" class:active={keyA} onpointerdown={() => simulateKey('a', true)} onpointerup={() => simulateKey('a', false)} onpointerleave={() => simulateKey('a', false)}>A</div>
+            <div class="v-key" class:active={keyS} onpointerdown={() => simulateKey('s', true)} onpointerup={() => simulateKey('s', false)} onpointerleave={() => simulateKey('s', false)}>S</div>
+            <div class="v-key" class:active={keyD} onpointerdown={() => simulateKey('d', true)} onpointerup={() => simulateKey('d', false)} onpointerleave={() => simulateKey('d', false)}>D</div>
           </div>
           
           <!-- Virtual Joysticks Visual -->
@@ -411,11 +411,11 @@
           <!-- Servos (D-Pad & Snap) -->
           <div class="dpad-grid">
             <div></div>
-            <div class="v-key" class:active={gpDpadUp || arrUp} onmousedown={() => arrUp = true} onmouseup={() => arrUp = false} onmouseleave={() => arrUp = false}>▲</div>
-            <div class="v-key btn-snap" class:active={gpBtnSnap || centerCamera} onmousedown={() => centerCamera = true}>R1/SP</div>
-            <div class="v-key" class:active={gpDpadLeft || arrLeft} onmousedown={() => arrLeft = true} onmouseup={() => arrLeft = false} onmouseleave={() => arrLeft = false}>◀</div>
-            <div class="v-key" class:active={gpDpadDown || arrDown} onmousedown={() => arrDown = true} onmouseup={() => arrDown = false} onmouseleave={() => arrDown = false}>▼</div>
-            <div class="v-key" class:active={gpDpadRight || arrRight} onmousedown={() => arrRight = true} onmouseup={() => arrRight = false} onmouseleave={() => arrRight = false}>▶</div>
+            <div class="v-key" class:active={gpDpadUp || arrUp} onpointerdown={() => arrUp = true} onpointerup={() => arrUp = false} onpointerleave={() => arrUp = false}>▲</div>
+            <div class="v-key btn-snap" class:active={gpBtnSnap || centerCamera} onpointerdown={() => centerCamera = true}>R1/SP</div>
+            <div class="v-key" class:active={gpDpadLeft || arrLeft} onpointerdown={() => arrLeft = true} onpointerup={() => arrLeft = false} onpointerleave={() => arrLeft = false}>◀</div>
+            <div class="v-key" class:active={gpDpadDown || arrDown} onpointerdown={() => arrDown = true} onpointerup={() => arrDown = false} onpointerleave={() => arrDown = false}>▼</div>
+            <div class="v-key" class:active={gpDpadRight || arrRight} onpointerdown={() => arrRight = true} onpointerup={() => arrRight = false} onpointerleave={() => arrRight = false}>▶</div>
           </div>
         </div>
       </div>
