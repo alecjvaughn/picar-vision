@@ -1,11 +1,11 @@
 # Implementation Plan: Modern Desktop Interface (Tauri & Rust UI)
 
 ## Phase 1: Tauri Application Scaffolding
-- [ ] Task: Initialize Tauri Project
-    - [ ] Create a new Tauri project in the `/Application` directory using the Svelte + TypeScript template
-    - [ ] Configure `tauri.conf.json` for macOS build targets and necessary permissions
-    - [ ] Setup initial Svelte routing and layout structure
-    - [ ] Clean up boilerplate code and configure styling
+- [x] Task: Initialize Tauri Project
+    - [x] Create a new Tauri project in the `/Application` directory using the Svelte + TypeScript template
+    - [x] Configure `tauri.conf.json` for macOS build targets and necessary permissions
+    - [x] Setup initial Svelte routing and layout structure
+    - [x] Clean up boilerplate code and configure styling
 
 ## Phase 2: Rust Backend Integration
 - [ ] Task: Establish WebSocket Client
