@@ -315,8 +315,11 @@
     
     // Smart Auto-Select: switch to whatever gamepad has activity
     if (activeGamepadId === null) {
+      if (autoSelectedPadId && !pads.find(p => p.id === autoSelectedPadId)) {
+        autoSelectedPadId = null; // Instantly fall back if current pad disconnected
+      }
       for (const p of pads) {
-        const hasActivity = p.axes.some(a => Math.abs(a) > 0.2) || p.buttons.some(b => b.pressed);
+        const hasActivity = p.axes.some(a => Math.abs(a) > 0.1) || p.buttons.some(b => b.pressed);
         if (hasActivity) {
           autoSelectedPadId = p.id;
           break; // First one with activity wins
