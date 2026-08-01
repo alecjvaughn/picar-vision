@@ -405,44 +405,29 @@
             <input id="servo-sens" type="range" min="0" max="100" bind:value={servoSensitivity} oninput={() => sendKeyboardCommand()} />
           </div>
           
-          <div class="control-groups" style="display: flex; gap: 1rem; margin-top: 1rem; flex-wrap: wrap;">
-            
-            <div class="modes-collection" style="flex: 1; min-width: 140px;">
-              <span style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.5rem; display: block;">Camera Mode</span>
-              <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
-                <button class="mode-toggle" class:active={servoMode === 'absolute'} onclick={() => servoMode = 'absolute'}>
-                  Absolute
-                </button>
-                <button class="mode-toggle" class:active={servoMode === 'incremental'} disabled style="opacity: 0.5; cursor: not-allowed;" title="FIXME: Spasming issues">
-                  Incremental
-                </button>
-              </div>
-            </div>
 
-            <div class="modes-collection" style="flex: 1; min-width: 140px;">
-              <span style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.5rem; display: block;">Turning Style</span>
-              <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
-                <button class="mode-toggle" class:active={!viewportTurn} onclick={() => { viewportTurn = false; sendKeyboardCommand(); }}>
-                  Normal
-                </button>
-                <button class="mode-toggle" class:active={viewportTurn} onclick={() => { viewportTurn = true; sendKeyboardCommand(); }}>
-                  Follow Camera
-                </button>
-              </div>
-            </div>
-
-          </div>
         </div>
 
         <div class="keys-container">
           <!-- Driving (WASD) -->
-          <div class="dpad-grid">
-            <div></div>
-            <div class="v-key" class:active={keyW} onpointerdown={() => simulateKey('w', true)} onpointerup={() => simulateKey('w', false)} onpointerleave={() => simulateKey('w', false)}>W</div>
-            <div></div>
-            <div class="v-key" class:active={keyA} onpointerdown={() => simulateKey('a', true)} onpointerup={() => simulateKey('a', false)} onpointerleave={() => simulateKey('a', false)}>A</div>
-            <div class="v-key" class:active={keyS} onpointerdown={() => simulateKey('s', true)} onpointerup={() => simulateKey('s', false)} onpointerleave={() => simulateKey('s', false)}>S</div>
-            <div class="v-key" class:active={keyD} onpointerdown={() => simulateKey('d', true)} onpointerup={() => simulateKey('d', false)} onpointerleave={() => simulateKey('d', false)}>D</div>
+          <div class="key-mode-group">
+            <div class="dpad-grid">
+              <div></div>
+              <div class="v-key" class:active={keyW} onpointerdown={() => simulateKey('w', true)} onpointerup={() => simulateKey('w', false)} onpointerleave={() => simulateKey('w', false)}>W</div>
+              <div></div>
+              <div class="v-key" class:active={keyA} onpointerdown={() => simulateKey('a', true)} onpointerup={() => simulateKey('a', false)} onpointerleave={() => simulateKey('a', false)}>A</div>
+              <div class="v-key" class:active={keyS} onpointerdown={() => simulateKey('s', true)} onpointerup={() => simulateKey('s', false)} onpointerleave={() => simulateKey('s', false)}>S</div>
+              <div class="v-key" class:active={keyD} onpointerdown={() => simulateKey('d', true)} onpointerup={() => simulateKey('d', false)} onpointerleave={() => simulateKey('d', false)}>D</div>
+            </div>
+            
+            <div class="toggle-container">
+              <span class="toggle-label" class:active={!viewportTurn}>Normal<br>Steering</span>
+              <label class="switch">
+                <input type="checkbox" bind:checked={viewportTurn} onchange={() => sendKeyboardCommand()} />
+                <span class="slider"></span>
+              </label>
+              <span class="toggle-label" class:active={viewportTurn}>Follow<br>Camera</span>
+            </div>
           </div>
           
           <!-- Virtual Joysticks Visual -->
@@ -462,13 +447,24 @@
           </div>
           
           <!-- Servos (D-Pad & Snap) -->
-          <div class="dpad-grid">
-            <div></div>
-            <div class="v-key" class:active={gpDpadUp || arrUp} onpointerdown={() => setVArrow('Up', true)} onpointerup={() => setVArrow('Up', false)} onpointerleave={() => {if (arrUp) setVArrow('Up', false)}}>▲</div>
-            <div class="v-key btn-snap" class:active={gpBtnSnap || centerCamera} onpointerdown={() => {centerCamera = true; sendKeyboardCommand();}}>R1/SP</div>
-            <div class="v-key" class:active={gpDpadLeft || arrLeft} onpointerdown={() => setVArrow('Left', true)} onpointerup={() => setVArrow('Left', false)} onpointerleave={() => {if (arrLeft) setVArrow('Left', false)}}>◀</div>
-            <div class="v-key" class:active={gpDpadDown || arrDown} onpointerdown={() => setVArrow('Down', true)} onpointerup={() => setVArrow('Down', false)} onpointerleave={() => {if (arrDown) setVArrow('Down', false)}}>▼</div>
-            <div class="v-key" class:active={gpDpadRight || arrRight} onpointerdown={() => setVArrow('Right', true)} onpointerup={() => setVArrow('Right', false)} onpointerleave={() => {if (arrRight) setVArrow('Right', false)}}>▶</div>
+          <div class="key-mode-group">
+            <div class="dpad-grid">
+              <div></div>
+              <div class="v-key" class:active={gpDpadUp || arrUp} onpointerdown={() => setVArrow('Up', true)} onpointerup={() => setVArrow('Up', false)} onpointerleave={() => {if (arrUp) setVArrow('Up', false)}}>▲</div>
+              <div class="v-key btn-snap" class:active={gpBtnSnap || centerCamera} onpointerdown={() => {centerCamera = true; sendKeyboardCommand();}}>R1/SP</div>
+              <div class="v-key" class:active={gpDpadLeft || arrLeft} onpointerdown={() => setVArrow('Left', true)} onpointerup={() => setVArrow('Left', false)} onpointerleave={() => {if (arrLeft) setVArrow('Left', false)}}>◀</div>
+              <div class="v-key" class:active={gpDpadDown || arrDown} onpointerdown={() => setVArrow('Down', true)} onpointerup={() => setVArrow('Down', false)} onpointerleave={() => {if (arrDown) setVArrow('Down', false)}}>▼</div>
+              <div class="v-key" class:active={gpDpadRight || arrRight} onpointerdown={() => setVArrow('Right', true)} onpointerup={() => setVArrow('Right', false)} onpointerleave={() => {if (arrRight) setVArrow('Right', false)}}>▶</div>
+            </div>
+
+            <div class="toggle-container">
+              <span class="toggle-label" class:active={servoMode === 'absolute'}>Absolute<br>Camera</span>
+              <label class="switch">
+                <input type="checkbox" checked={servoMode === 'incremental'} onchange={(e) => { servoMode = (e.target as HTMLInputElement).checked ? 'incremental' : 'absolute'; sendKeyboardCommand(); }} disabled title="FIXME: Spasming issues" />
+                <span class="slider"></span>
+              </label>
+              <span class="toggle-label" class:active={servoMode === 'incremental'}>Incremental<br>Camera</span>
+            </div>
           </div>
         </div>
       </div>
@@ -710,23 +706,7 @@
     box-shadow: 0 0 10px rgba(239, 68, 68, 0.5);
   }
 
-  .mode-toggle {
-    background: rgba(255, 255, 255, 0.1);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    color: white;
-    padding: 0.25rem 0.5rem;
-    border-radius: 4px;
-    font-size: 0.8rem;
-    cursor: pointer;
-  }
-  .mode-toggle.active {
-    background: var(--accent);
-    border-color: var(--accent);
-    color: #0f172a;
-  }
-  .mode-toggle:hover:not(:disabled) {
-    background: rgba(255, 255, 255, 0.2);
-  }
+
 
   .joysticks-row {
     display: flex;
@@ -769,5 +749,84 @@
     background: var(--accent-primary);
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3), inset 0 2px 4px rgba(255, 255, 255, 0.3);
     transition: transform 0.1s ease-out;
+  }
+
+  .key-mode-group {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  .toggle-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+  }
+
+  .toggle-label {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    text-align: center;
+    line-height: 1.2;
+    transition: color 0.2s;
+  }
+
+  .toggle-label.active {
+    color: var(--accent-primary);
+    font-weight: 600;
+  }
+
+  .switch {
+    position: relative;
+    display: inline-block;
+    width: 44px;
+    height: 24px;
+  }
+
+  .switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+  }
+
+  .slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    transition: .4s;
+    border-radius: 24px;
+  }
+
+  .slider:before {
+    position: absolute;
+    content: "";
+    height: 16px;
+    width: 16px;
+    left: 3px;
+    bottom: 3px;
+    background-color: white;
+    transition: .4s;
+    border-radius: 50%;
+  }
+
+  input:checked + .slider {
+    background-color: var(--accent-primary);
+    border-color: var(--accent-primary);
+  }
+
+  input:checked + .slider:before {
+    transform: translateX(20px);
+  }
+
+  input:disabled + .slider {
+    opacity: 0.5;
+    cursor: not-allowed;
   }
 </style>

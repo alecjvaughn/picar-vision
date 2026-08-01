@@ -19,3 +19,7 @@
   - UI linting (`eslint`, `prettier`).
   - Terraform validation (`terraform fmt -check`, `terraform validate`).
 - **ArgoCD Sync:** Once merged to `main`, ArgoCD will automatically detect changes in the manifests/charts and synchronize the local `kind` cluster state.
+
+## 4. Change Tracking
+- **In-Flight Changes Log:** All changes (bugs, features, enhancements) requested by the user and implemented during active development tracks MUST be documented in `conductor/in-flight-changes.md`.
+- **Formatting:** Group changes logically (e.g., UI, Backend, Logic), state the parent track number, and include the associated commit hashes.
