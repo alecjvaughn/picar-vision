@@ -23,3 +23,11 @@ This document tracks changes requested by the user and implemented during active
 ### 3. UI / UX Organization (Enhancements)
 - **Camera Modes UI Grouping:** Logically split and stacked camera options into "Camera Mode" (Absolute/Incremental) and "Turning Style" (Normal/Follow Camera).
   - Commits: `ccd3bfc`, `59b0a21`
+
+## Track: `joycon-support_20260801`
+
+### 1. Gamepad & Hardware (Features)
+- **JoyCon Connection & Telemetry:** Updated `gilrs` loop in Rust to emit power information (battery percentage) and identify JoyCon types (Dual, Single L, Single R).
+  - Commits: `e19a0a1`
+- **Joystick Calibration:** Created an interactive modal in Svelte and backing Rust state to capture, persist, and apply individual stick deadzones and center offsets to prevent drift.
+  - Commits: `e19a0a1`

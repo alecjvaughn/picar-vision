@@ -22,5 +22,5 @@ This file tracks all major development tracks for the `picar-vision` project. Ea
 
 ---
 
-- [ ] **Track: Full JoyCon support**
+- [x] **Track: Full JoyCon support**
 *Link: [./tracks/joycon-support_20260801/](./tracks/joycon-support_20260801/)*
