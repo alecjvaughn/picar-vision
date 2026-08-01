@@ -33,7 +33,11 @@
   let arrDown = $state(false);
   let arrLeft = $state(false);
   let arrRight = $state(false);
-  let arrSnap = $state(false);
+  let centerCamera = $state(false);
+
+  // Camera Absolute State (incremental)
+  let pan = $state(0.0);
+  let tilt = $state(0.0);
 
   // Computed Joystick Position from WASD + Drag
   let dragX = $state(0.0);
@@ -99,7 +103,7 @@
     move(e);
   }
 
-  async function sendKeyboardCommand() {
+  async function sendKeyboardCommand(includeCamera = false) {
     // Only send commands if connected, to avoid errors
     if (!connected) return;
     
@@ -114,14 +118,9 @@
       steering: steering
     };
 
-    if (cameraX !== 0 || cameraY !== 0 || arrSnap) {
-      const camScale = servoSensitivity / 100.0;
-      payload.pan = cameraX * camScale;
-      payload.tilt = -cameraY * camScale; // Inverted: UP is positive tilt
-      if (arrSnap) {
-        payload.pan = 0.0;
-        payload.tilt = 0.0;
-      }
+    if (includeCamera) {
+      payload.pan = pan;
+      payload.tilt = tilt;
     }
 
     try {
@@ -155,10 +154,15 @@
     // Arrow Keys (prevent scrolling and drive camera)
     if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
       e.preventDefault();
-      if (e.key === 'ArrowUp') { if (!arrUp) { arrUp = true; changed = true; } }
-      if (e.key === 'ArrowDown') { if (!arrDown) { arrDown = true; changed = true; } }
-      if (e.key === 'ArrowLeft') { if (!arrLeft) { arrLeft = true; changed = true; } }
-      if (e.key === 'ArrowRight') { if (!arrRight) { arrRight = true; changed = true; } }
+      if (e.key === 'ArrowUp') { arrUp = true; changed = true; }
+      if (e.key === 'ArrowDown') { arrDown = true; changed = true; }
+      if (e.key === 'ArrowLeft') { arrLeft = true; changed = true; }
+      if (e.key === 'ArrowRight') { arrRight = true; changed = true; }
+    }
+
+    if (e.key === ' ') {
+      e.preventDefault();
+      centerCamera = true;
     }
     
     if (changed) sendKeyboardCommand();
@@ -178,10 +182,10 @@
     // Arrow Keys
     if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
       e.preventDefault();
-      if (e.key === 'ArrowUp') { if (arrUp) { arrUp = false; changed = true; } }
-      if (e.key === 'ArrowDown') { if (arrDown) { arrDown = false; changed = true; } }
-      if (e.key === 'ArrowLeft') { if (arrLeft) { arrLeft = false; changed = true; } }
-      if (e.key === 'ArrowRight') { if (arrRight) { arrRight = false; changed = true; } }
+      if (e.key === 'ArrowUp') { arrUp = false; changed = true; }
+      if (e.key === 'ArrowDown') { arrDown = false; changed = true; }
+      if (e.key === 'ArrowLeft') { arrLeft = false; changed = true; }
+      if (e.key === 'ArrowRight') { arrRight = false; changed = true; }
     }
     
     if (changed) sendKeyboardCommand();
@@ -221,8 +225,27 @@
   }
 
   let unlistens: Array<() => void> = [];
+  let cameraInterval: any;
 
   onMount(async () => {
+    // Incremental camera control loop
+    cameraInterval = setInterval(() => {
+      if (connected && (cameraX !== 0 || cameraY !== 0 || centerCamera)) {
+        if (centerCamera) {
+          pan = 0.0;
+          tilt = 0.0;
+          centerCamera = false;
+        } else {
+          // Multiply degrees step size based on sensitivity slider
+          const step = (servoSensitivity / 100.0) * 0.05;
+          pan += cameraX * step;
+          tilt += -cameraY * step; // Inverted
+          pan = Math.max(-1, Math.min(1, pan));
+          tilt = Math.max(-1, Math.min(1, tilt));
+        }
+        sendKeyboardCommand(true);
+      }
+    }, 50);
     unlistens.push(await listen('ws-connected', () => { connected = true; isDisconnecting = false; }));
     unlistens.push(await listen('ws-disconnected', () => { connected = false; isDisconnecting = false; }));
     unlistens.push(await listen('controller-status', (event: any) => {
@@ -259,6 +282,7 @@
   });
   
   onDestroy(() => {
+    if (cameraInterval) clearInterval(cameraInterval);
     unlistens.forEach(u => u());
     window.removeEventListener('keydown', handleKeydown);
     window.removeEventListener('keyup', handleKeyup);
@@ -371,11 +395,11 @@
           <!-- Servos (D-Pad & Snap) -->
           <div class="dpad-grid">
             <div></div>
-            <div class="v-key" class:active={gpDpadUp || arrUp} onmousedown={() => { arrUp = true; sendKeyboardCommand(); }} onmouseup={() => { arrUp = false; sendKeyboardCommand(); }} onmouseleave={() => { if(arrUp) { arrUp = false; sendKeyboardCommand(); } }}>▲</div>
-            <div class="v-key btn-snap" class:active={gpBtnSnap || arrSnap} onmousedown={() => { arrSnap = true; sendKeyboardCommand(); }} onmouseup={() => { arrSnap = false; sendKeyboardCommand(); }} onmouseleave={() => { if(arrSnap) { arrSnap = false; sendKeyboardCommand(); } }}>R1</div>
-            <div class="v-key" class:active={gpDpadLeft || arrLeft} onmousedown={() => { arrLeft = true; sendKeyboardCommand(); }} onmouseup={() => { arrLeft = false; sendKeyboardCommand(); }} onmouseleave={() => { if(arrLeft) { arrLeft = false; sendKeyboardCommand(); } }}>◀</div>
-            <div class="v-key" class:active={gpDpadDown || arrDown} onmousedown={() => { arrDown = true; sendKeyboardCommand(); }} onmouseup={() => { arrDown = false; sendKeyboardCommand(); }} onmouseleave={() => { if(arrDown) { arrDown = false; sendKeyboardCommand(); } }}>▼</div>
-            <div class="v-key" class:active={gpDpadRight || arrRight} onmousedown={() => { arrRight = true; sendKeyboardCommand(); }} onmouseup={() => { arrRight = false; sendKeyboardCommand(); }} onmouseleave={() => { if(arrRight) { arrRight = false; sendKeyboardCommand(); } }}>▶</div>
+            <div class="v-key" class:active={gpDpadUp || arrUp} onmousedown={() => arrUp = true} onmouseup={() => arrUp = false} onmouseleave={() => arrUp = false}>▲</div>
+            <div class="v-key btn-snap" class:active={gpBtnSnap || centerCamera} onmousedown={() => centerCamera = true}>R1/SP</div>
+            <div class="v-key" class:active={gpDpadLeft || arrLeft} onmousedown={() => arrLeft = true} onmouseup={() => arrLeft = false} onmouseleave={() => arrLeft = false}>◀</div>
+            <div class="v-key" class:active={gpDpadDown || arrDown} onmousedown={() => arrDown = true} onmouseup={() => arrDown = false} onmouseleave={() => arrDown = false}>▼</div>
+            <div class="v-key" class:active={gpDpadRight || arrRight} onmousedown={() => arrRight = true} onmouseup={() => arrRight = false} onmouseleave={() => arrRight = false}>▶</div>
           </div>
         </div>
       </div>
