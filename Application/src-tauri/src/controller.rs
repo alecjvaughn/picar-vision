@@ -188,13 +188,15 @@ pub fn start_controller_loop(app_handle: AppHandle) {
                     if r_pan.abs() < rx_d { r_pan = 0.0; } else { r_pan = r_pan.signum() * (r_pan.abs() - rx_d) / (1.0 - rx_d.abs()); }
                     if r_tilt.abs() < ry_d { r_tilt = 0.0; } else { r_tilt = r_tilt.signum() * (r_tilt.abs() - ry_d) / (1.0 - ry_d.abs()); }
 
-                    if gamepad.name().contains("Joy-Con (R)") && throttle.abs() > 0.0 && r_tilt == 0.0 {
-                        r_tilt = throttle;
-                        throttle = 0.0;
-                    }
-                    if gamepad.name().contains("Joy-Con (R)") && steering.abs() > 0.0 && r_pan == 0.0 {
-                        r_pan = steering;
-                        steering = 0.0;
+                    if gamepad.name().contains("Joy-Con (R)") {
+                        if throttle.abs() > 0.0 {
+                            r_tilt = throttle;
+                            throttle = 0.0;
+                        }
+                        if steering.abs() > 0.0 {
+                            r_pan = steering;
+                            steering = 0.0;
+                        }
                     }
 
                     if throttle.abs() > merged_throttle.abs() { merged_throttle = throttle; }
@@ -208,10 +210,10 @@ pub fn start_controller_loop(app_handle: AppHandle) {
                     if dpad_x.abs() > merged_dpad_x.abs() { merged_dpad_x = dpad_x; }
                     if dpad_y.abs() > merged_dpad_y.abs() { merged_dpad_y = dpad_y; }
 
-                    btn_dpad_left |= gamepad.is_pressed(Button::DPadLeft);
-                    btn_dpad_right |= gamepad.is_pressed(Button::DPadRight);
-                    btn_dpad_up |= gamepad.is_pressed(Button::DPadUp);
-                    btn_dpad_down |= gamepad.is_pressed(Button::DPadDown);
+                    btn_dpad_left |= gamepad.is_pressed(Button::DPadLeft) || gamepad.is_pressed(Button::West);
+                    btn_dpad_right |= gamepad.is_pressed(Button::DPadRight) || gamepad.is_pressed(Button::East);
+                    btn_dpad_up |= gamepad.is_pressed(Button::DPadUp) || gamepad.is_pressed(Button::North);
+                    btn_dpad_down |= gamepad.is_pressed(Button::DPadDown) || gamepad.is_pressed(Button::South);
                 }
 
                 merged_throttle *= motor_scale;
