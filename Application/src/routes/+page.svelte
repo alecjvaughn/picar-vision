@@ -40,6 +40,14 @@
   let tilt = $state(0.0);
   let servoMode = $state<'incremental' | 'absolute'>('incremental');
 
+  function setVArrow(dir: 'Up'|'Down'|'Left'|'Right', state: boolean) {
+    if (dir === 'Up') arrUp = state;
+    if (dir === 'Down') arrDown = state;
+    if (dir === 'Left') arrLeft = state;
+    if (dir === 'Right') arrRight = state;
+    sendKeyboardCommand();
+  }
+
   // Computed Joystick Position from WASD + Drag
   let dragX = $state(0.0);
   let dragY = $state(0.0);
@@ -108,7 +116,7 @@
     // Only send commands if connected, to avoid errors
     if (!connected) return;
     
-    const scale = motorSpeed / 100.0;
+    const scale = Number(motorSpeed) / 100.0;
     // Map to standard axes: throttle is positive up, steering is positive right
     const throttle = -joystickY * scale; // invert Y so W is positive throttle
     const steering = joystickX * scale;
@@ -120,7 +128,7 @@
     };
 
     if (servoMode === 'absolute') {
-      const camScale = servoSensitivity / 100.0;
+      const camScale = Number(servoSensitivity) / 100.0;
       payload.pan = cameraX * camScale;
       payload.tilt = -cameraY * camScale;
       if (centerCamera) {
@@ -247,7 +255,7 @@
           centerCamera = false;
         } else {
           // Multiply degrees step size based on sensitivity slider
-          const step = (servoSensitivity / 100.0) * 0.05;
+          const step = (Number(servoSensitivity) / 100.0) * 0.05;
           pan += cameraX * step;
           tilt += -cameraY * step; // Inverted
           pan = Math.max(-1, Math.min(1, pan));
@@ -371,7 +379,7 @@
           </div>
           <div class="slider-group">
             <label for="servo-sens">Servo Sensitivity: {servoSensitivity}%</label>
-            <input id="servo-sens" type="range" min="0" max="100" bind:value={servoSensitivity} />
+            <input id="servo-sens" type="range" min="0" max="100" bind:value={servoSensitivity} oninput={() => sendKeyboardCommand()} />
           </div>
           <div class="sensor-row" style="margin-bottom: 0; margin-top: 0.5rem;">
             <span style="font-size: 0.85rem; color: var(--text-secondary);">Camera Mode</span>
@@ -411,11 +419,11 @@
           <!-- Servos (D-Pad & Snap) -->
           <div class="dpad-grid">
             <div></div>
-            <div class="v-key" class:active={gpDpadUp || arrUp} onpointerdown={() => arrUp = true} onpointerup={() => arrUp = false} onpointerleave={() => arrUp = false}>▲</div>
-            <div class="v-key btn-snap" class:active={gpBtnSnap || centerCamera} onpointerdown={() => centerCamera = true}>R1/SP</div>
-            <div class="v-key" class:active={gpDpadLeft || arrLeft} onpointerdown={() => arrLeft = true} onpointerup={() => arrLeft = false} onpointerleave={() => arrLeft = false}>◀</div>
-            <div class="v-key" class:active={gpDpadDown || arrDown} onpointerdown={() => arrDown = true} onpointerup={() => arrDown = false} onpointerleave={() => arrDown = false}>▼</div>
-            <div class="v-key" class:active={gpDpadRight || arrRight} onpointerdown={() => arrRight = true} onpointerup={() => arrRight = false} onpointerleave={() => arrRight = false}>▶</div>
+            <div class="v-key" class:active={gpDpadUp || arrUp} onpointerdown={() => setVArrow('Up', true)} onpointerup={() => setVArrow('Up', false)} onpointerleave={() => {if (arrUp) setVArrow('Up', false)}}>▲</div>
+            <div class="v-key btn-snap" class:active={gpBtnSnap || centerCamera} onpointerdown={() => {centerCamera = true; sendKeyboardCommand();}}>R1/SP</div>
+            <div class="v-key" class:active={gpDpadLeft || arrLeft} onpointerdown={() => setVArrow('Left', true)} onpointerup={() => setVArrow('Left', false)} onpointerleave={() => {if (arrLeft) setVArrow('Left', false)}}>◀</div>
+            <div class="v-key" class:active={gpDpadDown || arrDown} onpointerdown={() => setVArrow('Down', true)} onpointerup={() => setVArrow('Down', false)} onpointerleave={() => {if (arrDown) setVArrow('Down', false)}}>▼</div>
+            <div class="v-key" class:active={gpDpadRight || arrRight} onpointerdown={() => setVArrow('Right', true)} onpointerup={() => setVArrow('Right', false)} onpointerleave={() => {if (arrRight) setVArrow('Right', false)}}>▶</div>
           </div>
         </div>
       </div>
