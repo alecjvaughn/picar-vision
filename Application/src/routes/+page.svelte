@@ -405,19 +405,32 @@
             <input id="servo-sens" type="range" min="0" max="100" bind:value={servoSensitivity} oninput={() => sendKeyboardCommand()} />
           </div>
           
-          <div class="modes-collection" style="margin-top: 1rem;">
-            <span style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.5rem; display: block;">Camera Modes</span>
-            <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
-              <button class="mode-toggle" class:active={servoMode === 'absolute'} onclick={() => servoMode = 'absolute'}>
-                Absolute
-              </button>
-              <button class="mode-toggle" class:active={servoMode === 'incremental'} disabled style="opacity: 0.5; cursor: not-allowed;" title="FIXME: Spasming issues">
-                Incremental
-              </button>
-              <button class="mode-toggle" class:active={viewportTurn} onclick={() => { viewportTurn = !viewportTurn; sendKeyboardCommand(); }}>
-                Viewport Turn
-              </button>
+          <div class="control-groups" style="display: flex; gap: 1rem; margin-top: 1rem; flex-wrap: wrap;">
+            
+            <div class="modes-collection" style="flex: 1; min-width: 140px;">
+              <span style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.5rem; display: block;">Camera Mode</span>
+              <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                <button class="mode-toggle" class:active={servoMode === 'absolute'} onclick={() => servoMode = 'absolute'}>
+                  Absolute
+                </button>
+                <button class="mode-toggle" class:active={servoMode === 'incremental'} disabled style="opacity: 0.5; cursor: not-allowed;" title="FIXME: Spasming issues">
+                  Incremental
+                </button>
+              </div>
             </div>
+
+            <div class="modes-collection" style="flex: 1; min-width: 140px;">
+              <span style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.5rem; display: block;">Turning Style</span>
+              <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                <button class="mode-toggle" class:active={!viewportTurn} onclick={() => { viewportTurn = false; sendKeyboardCommand(); }}>
+                  Normal
+                </button>
+                <button class="mode-toggle" class:active={viewportTurn} onclick={() => { viewportTurn = true; sendKeyboardCommand(); }}>
+                  Follow Camera
+                </button>
+              </div>
+            </div>
+
           </div>
         </div>
 
