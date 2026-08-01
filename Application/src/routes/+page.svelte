@@ -38,6 +38,7 @@
   // Camera Absolute State (incremental)
   let pan = $state(0.0);
   let tilt = $state(0.0);
+  let servoMode = $state<'incremental' | 'absolute'>('incremental');
 
   // Computed Joystick Position from WASD + Drag
   let dragX = $state(0.0);
@@ -118,7 +119,16 @@
       steering: steering
     };
 
-    if (includeCamera) {
+    if (servoMode === 'absolute') {
+      const camScale = servoSensitivity / 100.0;
+      payload.pan = cameraX * camScale;
+      payload.tilt = -cameraY * camScale;
+      if (centerCamera) {
+        payload.pan = 0.0;
+        payload.tilt = 0.0;
+        centerCamera = false;
+      }
+    } else if (includeCamera) {
       payload.pan = pan;
       payload.tilt = tilt;
     }
@@ -230,7 +240,7 @@
   onMount(async () => {
     // Incremental camera control loop
     cameraInterval = setInterval(() => {
-      if (connected && (cameraX !== 0 || cameraY !== 0 || centerCamera)) {
+      if (connected && servoMode === 'incremental' && (cameraX !== 0 || cameraY !== 0 || centerCamera)) {
         if (centerCamera) {
           pan = 0.0;
           tilt = 0.0;
@@ -362,6 +372,12 @@
           <div class="slider-group">
             <label for="servo-sens">Servo Sensitivity: {servoSensitivity}%</label>
             <input id="servo-sens" type="range" min="0" max="100" bind:value={servoSensitivity} />
+          </div>
+          <div class="sensor-row" style="margin-bottom: 0; margin-top: 0.5rem;">
+            <span style="font-size: 0.85rem; color: var(--text-secondary);">Camera Mode</span>
+            <button class="mode-toggle" onclick={() => servoMode = (servoMode === 'incremental' ? 'absolute' : 'incremental')}>
+              {servoMode === 'incremental' ? 'Incremental' : 'Absolute'}
+            </button>
           </div>
         </div>
 
@@ -639,6 +655,18 @@
   .btn-snap.active {
     background: var(--accent-danger);
     box-shadow: 0 0 10px rgba(239, 68, 68, 0.5);
+  }
+
+  .mode-toggle {
+    padding: 0.25rem 0.75rem;
+    font-size: 0.75rem;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: var(--text-primary);
+  }
+  .mode-toggle:hover {
+    background: rgba(255, 255, 255, 0.2);
   }
 
   .joysticks-row {
