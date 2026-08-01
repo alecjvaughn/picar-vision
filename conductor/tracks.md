@@ -24,3 +24,6 @@ This file tracks all major development tracks for the `picar-vision` project. Ea
 
 - [x] **Track: Full JoyCon support**
 *Link: [./tracks/joycon-support_20260801/](./tracks/joycon-support_20260801/)*
+
+- [~] **Track: Gamepad Switcher Modal**
+*Link: [./tracks/gamepad-switcher_20260801/](./tracks/gamepad-switcher_20260801/)*
