@@ -14,5 +14,5 @@ This file tracks all major development tracks for the `picar-vision` project. Ea
 - [~] **Track: Modern Desktop Interface (Tauri & Rust UI)**
 *Link: [./tracks/tauri-rust-ui_20260731/](./tracks/tauri-rust-ui_20260731/)*
 
-- [ ] **Track: Robust Infrastructure (GitOps, Terraform, ArgoCD)**
+- [x] **Track: Robust Infrastructure (GitOps, Terraform, ArgoCD)**
 *Link: [./tracks/infrastructure_20260731/](./tracks/infrastructure_20260731/)*
