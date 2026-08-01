@@ -11,6 +11,7 @@
   let light = $state("--");
   let controllerStatus = $state("Not Detected");
   let videoBlobUrl = $state("");
+  let isDisconnecting = $state(false);
 
   // Virtual Controls State
   let keyW = $state(false);
@@ -189,6 +190,7 @@
   async function toggleConnection() {
     if (!connected) {
       try {
+        isDisconnecting = false;
         await invoke('connect_to_pi', { ip: ipAddress });
         connected = true;
       } catch (e) {
@@ -202,6 +204,7 @@
 
   async function disconnect() {
     try {
+      isDisconnecting = true;
       // Stop the motors before dropping the connection
       await invoke('send_pi_command', { command: JSON.stringify({
         type: 'command',
@@ -213,14 +216,15 @@
       videoBlobUrl = "";
     } catch (e) {
       console.error("Failed to disconnect:", e);
+      isDisconnecting = false;
     }
   }
 
   let unlistens: Array<() => void> = [];
 
   onMount(async () => {
-    unlistens.push(await listen('ws-connected', () => { connected = true; }));
-    unlistens.push(await listen('ws-disconnected', () => { connected = false; }));
+    unlistens.push(await listen('ws-connected', () => { connected = true; isDisconnecting = false; }));
+    unlistens.push(await listen('ws-disconnected', () => { connected = false; isDisconnecting = false; }));
     unlistens.push(await listen('controller-status', (event: any) => {
       if (event.payload.connected) {
         controllerStatus = event.payload.name || "Connected";
@@ -229,6 +233,7 @@
       }
     }));
     unlistens.push(await listen('telemetry', (event: any) => {
+      if (isDisconnecting) return;
       connected = true; // Recover connection state if UI hot-reloads
       
       distance = event.payload.distance?.toFixed(1) || "--";

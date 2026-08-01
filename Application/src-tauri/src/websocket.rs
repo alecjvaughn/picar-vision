@@ -30,6 +30,7 @@ pub async fn connect_to_pi(
                 break;
             }
         }
+        let _ = write.close().await;
     });
 
     // Task for reading messages
