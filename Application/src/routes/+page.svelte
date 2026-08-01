@@ -1,12 +1,57 @@
 <script lang="ts">
+  import { invoke } from '@tauri-apps/api/core';
+  import { listen } from '@tauri-apps/api/event';
+  import { onMount, onDestroy } from 'svelte';
+
   // Core Dashboard State
   let connected = $state(false);
   let ipAddress = $state("10.0.0.X");
   
-  function toggleConnection() {
-    connected = !connected;
-    // TODO: Implement Tauri IPC call to Rust WebSocket client
+  let distance = $state("--");
+  let light = $state("--");
+  let controllerStatus = $state("Not Detected");
+  let videoBlobUrl = $state("");
+
+  async function toggleConnection() {
+    if (!connected) {
+      try {
+        await invoke('connect_to_pi', { ip: ipAddress });
+      } catch (e) {
+        console.error(e);
+        alert(e);
+      }
+    } else {
+      connected = false;
+    }
   }
+
+  let unlistens: Array<() => void> = [];
+
+  onMount(async () => {
+    unlistens.push(await listen('ws-connected', () => { connected = true; }));
+    unlistens.push(await listen('ws-disconnected', () => { connected = false; }));
+    unlistens.push(await listen('controller-status', (event: any) => {
+      if (event.payload.connected) {
+        controllerStatus = event.payload.name || "Connected";
+      } else {
+        controllerStatus = "Not Detected";
+      }
+    }));
+    unlistens.push(await listen('telemetry', (event: any) => {
+      distance = event.payload.distance?.toFixed(1) || "--";
+      light = event.payload.light?.toString() || "--";
+    }));
+    unlistens.push(await listen('video-frame', (event: any) => {
+      const blob = new Blob([new Uint8Array(event.payload)], { type: 'image/jpeg' });
+      if (videoBlobUrl) URL.revokeObjectURL(videoBlobUrl);
+      videoBlobUrl = URL.createObjectURL(blob);
+    }));
+  });
+  
+  onDestroy(() => {
+    unlistens.forEach(u => u());
+    if (videoBlobUrl) URL.revokeObjectURL(videoBlobUrl);
+  });
 </script>
 
 <main class="dashboard">
@@ -34,8 +79,11 @@
       </div>
       <div class="video-container" class:offline={!connected}>
         {#if connected}
-          <!-- Placeholder for MJPEG / Canvas -->
-          <div class="stream-placeholder">Video Stream Active</div>
+          {#if videoBlobUrl}
+            <img class="video-stream" src={videoBlobUrl} alt="Live MJPEG stream" />
+          {:else}
+            <div class="stream-placeholder">Video Stream Active... Waiting for frames.</div>
+          {/if}
         {:else}
           <div class="stream-placeholder">Waiting for connection...</div>
         {/if}
@@ -48,11 +96,11 @@
         <h3>Sensors</h3>
         <div class="sensor-row">
           <span>Distance</span>
-          <span class="value">-- cm</span>
+          <span class="value">{distance} cm</span>
         </div>
         <div class="sensor-row">
           <span>Light</span>
-          <span class="value">-- / 255</span>
+          <span class="value">{light} / 255</span>
         </div>
       </div>
       
@@ -60,7 +108,7 @@
         <h3>Controller Status</h3>
         <div class="sensor-row">
           <span>JoyCon</span>
-          <span class="value disconnected">Not Detected</span>
+          <span class="value" class:disconnected={controllerStatus === "Not Detected"}>{controllerStatus}</span>
         </div>
       </div>
     </aside>
@@ -159,6 +207,12 @@
     color: var(--text-secondary);
     font-weight: 500;
     letter-spacing: 0.05em;
+  }
+
+  .video-stream {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
   }
 
   .telemetry-section {
