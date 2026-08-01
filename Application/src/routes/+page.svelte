@@ -27,9 +27,69 @@
   let dpadRight = $state(false);
   let btnSnap = $state(false);
 
-  // Computed Joystick Position from WASD (-1.0 to 1.0)
-  let joystickX = $derived((keyD ? 1 : 0) - (keyA ? 1 : 0));
-  let joystickY = $derived((keyS ? 1 : 0) - (keyW ? 1 : 0)); // Note: Y is inverted for screen (up is negative Y)
+  // Computed Joystick Position from WASD + Drag
+  let dragX = $state(0.0);
+  let dragY = $state(0.0);
+  let joystickX = $derived(Math.max(-1, Math.min(1, (keyD ? 1 : 0) - (keyA ? 1 : 0) + dragX)));
+  let joystickY = $derived(Math.max(-1, Math.min(1, (keyS ? 1 : 0) - (keyW ? 1 : 0) + dragY)));
+
+  // Computed Camera Stick from DPad + Drag
+  let camDragX = $state(0.0);
+  let camDragY = $state(0.0);
+  let cameraX = $derived(Math.max(-1, Math.min(1, (dpadRight ? 1 : 0) - (dpadLeft ? 1 : 0) + camDragX)));
+  let cameraY = $derived(Math.max(-1, Math.min(1, (dpadDown ? 1 : 0) - (dpadUp ? 1 : 0) + camDragY)));
+
+  function handlePointerDown(e: PointerEvent, stick: 'L' | 'R') {
+    const base = e.currentTarget as HTMLElement;
+    base.setPointerCapture(e.pointerId);
+    
+    function move(e: PointerEvent) {
+      const rect = base.getBoundingClientRect();
+      const radius = rect.width / 2;
+      const cx = rect.left + radius;
+      const cy = rect.top + radius;
+      
+      let dx = (e.clientX - cx) / radius;
+      let dy = (e.clientY - cy) / radius;
+      
+      const distance = Math.sqrt(dx*dx + dy*dy);
+      if (distance > 1) {
+        dx /= distance;
+        dy /= distance;
+      }
+      
+      if (stick === 'L') {
+        dragX = dx;
+        dragY = dy;
+      } else {
+        camDragX = dx;
+        camDragY = dy;
+      }
+      sendKeyboardCommand();
+    }
+    
+    function up(e: PointerEvent) {
+      base.releasePointerCapture(e.pointerId);
+      base.removeEventListener('pointermove', move);
+      base.removeEventListener('pointerup', up);
+      base.removeEventListener('pointercancel', up);
+      
+      if (stick === 'L') {
+        dragX = 0;
+        dragY = 0;
+      } else {
+        camDragX = 0;
+        camDragY = 0;
+      }
+      sendKeyboardCommand();
+    }
+    
+    base.addEventListener('pointermove', move);
+    base.addEventListener('pointerup', up);
+    base.addEventListener('pointercancel', up);
+    
+    move(e);
+  }
 
   async function sendKeyboardCommand() {
     // Only send commands if connected, to avoid errors
@@ -40,12 +100,24 @@
     const throttle = -joystickY * scale; // invert Y so W is positive throttle
     const steering = joystickX * scale;
     
+    let payload: any = {
+      type: 'command',
+      throttle: throttle,
+      steering: steering
+    };
+
+    if (cameraX !== 0 || cameraY !== 0 || btnSnap) {
+      const camScale = servoSensitivity / 100.0;
+      payload.pan = cameraX * camScale;
+      payload.tilt = cameraY * camScale;
+      if (btnSnap) {
+        payload.pan = 0.0;
+        payload.tilt = 0.0;
+      }
+    }
+
     try {
-      await invoke('send_pi_command', { command: JSON.stringify({
-        type: 'command',
-        throttle: throttle,
-        steering: steering
-      })});
+      await invoke('send_pi_command', { command: JSON.stringify(payload) });
     } catch (e) {
       console.error("Failed to send command:", e);
     }
@@ -54,6 +126,12 @@
   $effect(() => {
     invoke('update_settings', { motorSpeed, servoSensitivity }).catch(console.error);
   });
+
+  function simulateKey(key: string, isDown: boolean) {
+    const event = new KeyboardEvent(isDown ? 'keydown' : 'keyup', { key });
+    if (isDown) handleKeydown(event);
+    else handleKeyup(event);
+  }
 
   function handleKeydown(e: KeyboardEvent) {
     let changed = false;
@@ -141,7 +219,7 @@
     </div>
     
     <div class="controls-area">
-      <input type="text" bind:value={ipAddress} placeholder="Raspberry Pi IP" disabled={connected} />
+      <input type="text" bind:value={ipAddress} placeholder="Raspberry Pi IP" disabled={connected} onkeydown={(e) => e.key === 'Enter' && !connected && toggleConnection()} />
       <button onclick={toggleConnection} class={connected ? 'btn-danger' : 'btn-primary'}>
         {connected ? 'Disconnect' : 'Connect'}
       </button>
@@ -165,30 +243,33 @@
           <div class="stream-placeholder">Waiting for connection...</div>
         {/if}
       </div>
+
+      <!-- Horizontal Stats -->
+      <div class="horizontal-stats">
+        <div class="glass-panel telemetry-card">
+          <h3>Sensors</h3>
+          <div class="sensor-row">
+            <span>Distance</span>
+            <span class="value">{distance} cm</span>
+          </div>
+          <div class="sensor-row">
+            <span>Light</span>
+            <span class="value">{light} / 255</span>
+          </div>
+        </div>
+        
+        <div class="glass-panel telemetry-card">
+          <h3>Controller Status</h3>
+          <div class="sensor-row">
+            <span>JoyCon</span>
+            <span class="value" class:disconnected={controllerStatus === "Not Detected"}>{controllerStatus}</span>
+          </div>
+        </div>
+      </div>
     </section>
 
     <!-- Telemetry Sidebar -->
     <aside class="telemetry-section">
-      <div class="glass-panel telemetry-card">
-        <h3>Sensors</h3>
-        <div class="sensor-row">
-          <span>Distance</span>
-          <span class="value">{distance} cm</span>
-        </div>
-        <div class="sensor-row">
-          <span>Light</span>
-          <span class="value">{light} / 255</span>
-        </div>
-      </div>
-      
-      <div class="glass-panel telemetry-card">
-        <h3>Controller Status</h3>
-        <div class="sensor-row">
-          <span>JoyCon</span>
-          <span class="value" class:disconnected={controllerStatus === "Not Detected"}>{controllerStatus}</span>
-        </div>
-      </div>
-
       <!-- Virtual Controls -->
       <div class="glass-panel telemetry-card controls-card">
         <h3>Virtual Controls</h3>
@@ -196,7 +277,7 @@
         <div class="sliders">
           <div class="slider-group">
             <label for="motor-speed">Motor Speed: {motorSpeed}%</label>
-            <input id="motor-speed" type="range" min="0" max="100" bind:value={motorSpeed} onchange={sendKeyboardCommand} />
+            <input id="motor-speed" type="range" min="0" max="100" bind:value={motorSpeed} oninput={sendKeyboardCommand} />
           </div>
           <div class="slider-group">
             <label for="servo-sens">Servo Sensitivity: {servoSensitivity}%</label>
@@ -208,17 +289,26 @@
           <!-- Driving (WASD) -->
           <div class="dpad-grid">
             <div></div>
-            <div class="v-key" class:active={keyW}>W</div>
+            <div class="v-key" class:active={keyW} onmousedown={() => simulateKey('w', true)} onmouseup={() => simulateKey('w', false)} onmouseleave={() => simulateKey('w', false)}>W</div>
             <div></div>
-            <div class="v-key" class:active={keyA}>A</div>
-            <div class="v-key" class:active={keyS}>S</div>
-            <div class="v-key" class:active={keyD}>D</div>
+            <div class="v-key" class:active={keyA} onmousedown={() => simulateKey('a', true)} onmouseup={() => simulateKey('a', false)} onmouseleave={() => simulateKey('a', false)}>A</div>
+            <div class="v-key" class:active={keyS} onmousedown={() => simulateKey('s', true)} onmouseup={() => simulateKey('s', false)} onmouseleave={() => simulateKey('s', false)}>S</div>
+            <div class="v-key" class:active={keyD} onmousedown={() => simulateKey('d', true)} onmouseup={() => simulateKey('d', false)} onmouseleave={() => simulateKey('d', false)}>D</div>
           </div>
           
-          <!-- Virtual Joystick Visual -->
-          <div class="joystick-wrapper">
-            <div class="joystick-base">
-              <div class="joystick-stick" style="transform: translate({joystickX * 20}px, {joystickY * 20}px)"></div>
+          <!-- Virtual Joysticks Visual -->
+          <div class="joysticks-row">
+            <div class="joystick-wrapper">
+              <span class="stick-label">L (WASD)</span>
+              <div class="joystick-base" onpointerdown={(e) => handlePointerDown(e, 'L')} style="cursor: crosshair; touch-action: none;">
+                <div class="joystick-stick" style="transform: translate({joystickX * 20}px, {joystickY * 20}px)"></div>
+              </div>
+            </div>
+            <div class="joystick-wrapper">
+              <span class="stick-label">R (Camera)</span>
+              <div class="joystick-base" onpointerdown={(e) => handlePointerDown(e, 'R')} style="cursor: crosshair; touch-action: none;">
+                <div class="joystick-stick" style="transform: translate({cameraX * 20}px, {cameraY * 20}px)"></div>
+              </div>
             </div>
           </div>
           
@@ -337,6 +427,17 @@
     object-fit: contain;
   }
 
+  .horizontal-stats {
+    display: flex;
+    gap: 1.5rem;
+    margin-top: 1.5rem;
+  }
+
+  .horizontal-stats .telemetry-card {
+    flex: 1;
+    background: rgba(255, 255, 255, 0.03); /* slightly different background for nested cards */
+  }
+
   .telemetry-section {
     display: flex;
     flex-direction: column;
@@ -404,7 +505,10 @@
 
   .slider-group input[type=range] {
     width: 100%;
+    box-sizing: border-box;
+    margin: 0;
     accent-color: var(--accent-primary);
+    cursor: pointer;
   }
 
   .keys-container {
@@ -435,6 +539,8 @@
     font-size: 0.9rem;
     color: var(--text-secondary);
     transition: all 0.1s;
+    cursor: pointer;
+    user-select: none;
   }
 
   .v-key.active {
@@ -455,14 +561,31 @@
     box-shadow: 0 0 10px rgba(239, 68, 68, 0.5);
   }
 
+  .joysticks-row {
+    display: flex;
+    flex-direction: row;
+    gap: 2.5rem;
+    justify-content: center;
+    width: 100%;
+    margin: 0.5rem 0;
+  }
+
   .joystick-wrapper {
     display: flex;
-    justify-content: center;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .stick-label {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    font-weight: 600;
   }
 
   .joystick-base {
-    width: 80px;
-    height: 80px;
+    width: 70px;
+    height: 70px;
     border-radius: 50%;
     background: rgba(255, 255, 255, 0.05);
     border: 2px solid rgba(255, 255, 255, 0.1);
@@ -473,8 +596,8 @@
   }
 
   .joystick-stick {
-    width: 30px;
-    height: 30px;
+    width: 26px;
+    height: 26px;
     border-radius: 50%;
     background: var(--accent-primary);
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3), inset 0 2px 4px rgba(255, 255, 255, 0.3);
