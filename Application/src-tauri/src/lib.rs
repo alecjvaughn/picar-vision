@@ -1,15 +1,43 @@
-pub mod websocket;
 pub mod controller;
+pub mod websocket;
 
+use std::sync::atomic::{AtomicU32, Ordering};
 use tokio::sync::Mutex;
-use websocket::{WsState, connect_to_pi, send_pi_command};
+use websocket::{connect_to_pi, send_pi_command, WsState};
+
+pub struct ControlSettings {
+    pub motor_speed: AtomicU32,
+    pub servo_sensitivity: AtomicU32,
+}
+
+#[tauri::command]
+fn update_settings(
+    motor_speed: u32,
+    servo_sensitivity: u32,
+    settings: tauri::State<ControlSettings>,
+) {
+    settings.motor_speed.store(motor_speed, Ordering::Relaxed);
+    settings
+        .servo_sensitivity
+        .store(servo_sensitivity, Ordering::Relaxed);
+}
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
-        .manage(WsState { tx: Mutex::new(None) })
-        .invoke_handler(tauri::generate_handler![connect_to_pi, send_pi_command])
+        .manage(WsState {
+            tx: Mutex::new(None),
+        })
+        .manage(ControlSettings {
+            motor_speed: AtomicU32::new(100),
+            servo_sensitivity: AtomicU32::new(50),
+        })
+        .invoke_handler(tauri::generate_handler![
+            connect_to_pi,
+            send_pi_command,
+            update_settings
+        ])
         .setup(|app| {
             let handle = app.handle().clone();
             controller::start_controller_loop(handle);
