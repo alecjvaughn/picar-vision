@@ -302,6 +302,14 @@
     activeGamepadId = id;
   }
 
+  function toggleAutoSelect(checked: boolean) {
+    if (checked) {
+      setGamepadMode(null);
+    } else {
+      setGamepadMode(autoSelectedPadId || (gamepads[0] ? gamepads[0].id : 'none'));
+    }
+  }
+
   function pollWebGamepad() {
     const pads = navigator.getGamepads ? Array.from(navigator.getGamepads()).filter(p => p !== null && p.connected) : [];
     
@@ -640,7 +648,13 @@
   <div class="modal-content glass-panel" style="min-width: 500px;">
     <div style="display: flex; justify-content: space-between; align-items: center;">
       <h2>Connected Gamepads</h2>
-      <button class="btn-primary" onclick={() => setGamepadMode(null)} style="font-size: 0.8rem; padding: 0.4rem;">Auto Select</button>
+      <div style="display: flex; align-items: center; gap: 0.75rem;">
+        <span style="font-size: 0.9rem; font-weight: bold; color: {activeGamepadId === null ? 'var(--primary-color)' : 'var(--text-secondary)'};">Auto Select</span>
+        <label class="switch">
+          <input type="checkbox" checked={activeGamepadId === null} onchange={(e) => toggleAutoSelect((e.target as HTMLInputElement).checked)} />
+          <span class="slider"></span>
+        </label>
+      </div>
     </div>
     
     {#if gamepads.length === 0}
