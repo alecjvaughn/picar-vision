@@ -10,6 +10,8 @@
   let distance = $state("--");
   let light = $state("--");
   let controllerStatus = $state("Not Detected");
+  let controllerBattery = $state("Unknown");
+  let controllerType = $state("Standard");
   let videoBlobUrl = $state("");
   let isDisconnecting = $state(false);
 
@@ -30,6 +32,25 @@
       viewportTurn 
     }).catch(console.error);
   });
+  
+  // Calibration State
+  let showCalibration = $state(false);
+  let calLxCenter = $state(0);
+  let calLyCenter = $state(0);
+  let calRxCenter = $state(0);
+  let calRyCenter = $state(0);
+  let calLxDeadzone = $state(200);
+  let calLyDeadzone = $state(200);
+  let calRxDeadzone = $state(200);
+  let calRyDeadzone = $state(200);
+
+  function saveCalibration() {
+    invoke('update_calibration', {
+      lxC: Number(calLxCenter), lyC: Number(calLyCenter), rxC: Number(calRxCenter), ryC: Number(calRyCenter),
+      lxD: Number(calLxDeadzone), lyD: Number(calLyDeadzone), rxD: Number(calRxDeadzone), ryD: Number(calRyDeadzone)
+    }).catch(console.error);
+    showCalibration = false;
+  }
   
   // Gamepad State for UI (visual only)
   let gpDpadUp = $state(false);
@@ -292,8 +313,12 @@
     unlistens.push(await listen('controller-status', (event: any) => {
       if (event.payload.connected) {
         controllerStatus = event.payload.name || "Connected";
+        controllerBattery = event.payload.battery || "Unknown";
+        controllerType = event.payload.joyconType || "Standard";
       } else {
         controllerStatus = "Not Detected";
+        controllerBattery = "Unknown";
+        controllerType = "Standard";
       }
     }));
     unlistens.push(await listen('telemetry', (event: any) => {
@@ -382,9 +407,18 @@
         <div class="glass-panel telemetry-card">
           <h3>Controller Status</h3>
           <div class="sensor-row">
-            <span>JoyCon</span>
-            <span class="value" class:disconnected={controllerStatus === "Not Detected"}>{controllerStatus}</span>
+            <span>Gamepad</span>
+            <span class="value" class:disconnected={controllerStatus === "Not Detected"}>{controllerStatus !== "Not Detected" ? controllerType : "Not Detected"}</span>
           </div>
+          {#if controllerStatus !== "Not Detected"}
+            <div class="sensor-row">
+              <span>Battery</span>
+              <span class="value">{controllerBattery}</span>
+            </div>
+            <div style="margin-top: 1rem; text-align: center;">
+              <button class="btn-primary" onclick={() => showCalibration = true} style="width: 100%; font-size: 0.8rem; padding: 0.5rem;">Calibrate Joystick</button>
+            </div>
+          {/if}
         </div>
       </div>
     </section>
@@ -471,6 +505,37 @@
     </aside>
   </div>
 </main>
+
+{#if showCalibration}
+<div class="modal-backdrop">
+  <div class="modal-content glass-panel">
+    <h2>Joystick Calibration</h2>
+    <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1rem;">Values are in thousandths (e.g., 200 = 0.20)</p>
+    
+    <div class="cal-grid">
+      <div>
+        <h4>Left Stick</h4>
+        <label>X Center: <input type="number" bind:value={calLxCenter} /></label>
+        <label>Y Center: <input type="number" bind:value={calLyCenter} /></label>
+        <label>X Deadzone: <input type="number" bind:value={calLxDeadzone} /></label>
+        <label>Y Deadzone: <input type="number" bind:value={calLyDeadzone} /></label>
+      </div>
+      <div>
+        <h4>Right Stick</h4>
+        <label>X Center: <input type="number" bind:value={calRxCenter} /></label>
+        <label>Y Center: <input type="number" bind:value={calRyCenter} /></label>
+        <label>X Deadzone: <input type="number" bind:value={calRxDeadzone} /></label>
+        <label>Y Deadzone: <input type="number" bind:value={calRyDeadzone} /></label>
+      </div>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn-primary" onclick={saveCalibration}>Save</button>
+      <button class="btn-danger" onclick={() => showCalibration = false}>Cancel</button>
+    </div>
+  </div>
+</div>
+{/if}
 
 <style>
   .dashboard {
@@ -828,5 +893,64 @@
   input:disabled + .slider {
     opacity: 0.5;
     cursor: not-allowed;
+  }
+
+  .modal-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+  }
+
+  .modal-content {
+    background: #1e293b;
+    padding: 2rem;
+    border-radius: 12px;
+    min-width: 400px;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+
+  .cal-grid {
+    display: flex;
+    gap: 2rem;
+  }
+
+  .cal-grid h4 {
+    margin-bottom: 0.5rem;
+    color: var(--accent-primary);
+  }
+
+  .cal-grid label {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.85rem;
+    margin-bottom: 0.5rem;
+    color: var(--text-secondary);
+  }
+
+  .cal-grid input {
+    width: 80px;
+    background: rgba(255,255,255,0.1);
+    border: 1px solid rgba(255,255,255,0.2);
+    color: white;
+    padding: 0.25rem;
+    border-radius: 4px;
+    text-align: right;
+  }
+
+  .modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 1rem;
+    margin-top: 1rem;
   }
 </style>

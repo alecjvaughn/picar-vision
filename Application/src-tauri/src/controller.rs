@@ -3,7 +3,7 @@ use crate::ControlSettings;
 use gilrs::{Axis, Button, Event, EventType, Gilrs};
 use serde_json::{json, Value};
 use std::sync::atomic::Ordering;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use tauri::{AppHandle, Emitter, Manager};
 
 pub fn start_controller_loop(app_handle: AppHandle) {
@@ -24,6 +24,8 @@ pub fn start_controller_loop(app_handle: AppHandle) {
         let mut last_steering = 0.0;
         let mut last_pan = 0.0;
         let mut last_tilt = 0.0;
+        
+        let mut last_status_emit = Instant::now();
 
         loop {
             // Examine new events
@@ -32,13 +34,16 @@ pub fn start_controller_loop(app_handle: AppHandle) {
 
                 match event {
                     EventType::Connected => {
+                        let name = gilrs.gamepad(id).name().to_string();
                         let _ = app_handle.emit(
                             "controller-status",
-                            json!({"connected": true, "name": gilrs.gamepad(id).name()}),
+                            json!({"connected": true, "name": name, "battery": "Unknown"}),
                         );
                     }
                     EventType::Disconnected => {
-                        active_gamepad = None;
+                        if Some(id) == active_gamepad {
+                            active_gamepad = None;
+                        }
                         let _ = app_handle.emit("controller-status", json!({"connected": false}));
                     }
                     EventType::ButtonPressed(button, _) => {
@@ -67,25 +72,55 @@ pub fn start_controller_loop(app_handle: AppHandle) {
             // If we have an active gamepad, poll its state for commands
             if let Some(id) = active_gamepad {
                 let gamepad = gilrs.gamepad(id);
+                let name = gamepad.name().to_string();
+                
+                // Periodic status emit for battery & JoyCon detection
+                if last_status_emit.elapsed() > Duration::from_secs(1) {
+                    let power = gamepad.power_info();
+                    let battery = match power {
+                        gilrs::PowerInfo::Unknown => "Unknown".to_string(),
+                        gilrs::PowerInfo::Wired => "Wired".to_string(),
+                        gilrs::PowerInfo::Discharging(lvl) | gilrs::PowerInfo::Charging(lvl) => format!("{}%", lvl),
+                        gilrs::PowerInfo::Charged => "100%".to_string(),
+                    };
+                    
+                    let mut joycon_type = "Standard";
+                    if name.contains("Joy-Con (L)") { joycon_type = "Single L"; }
+                    else if name.contains("Joy-Con (R)") { joycon_type = "Single R"; }
+                    else if name.contains("Joy-Con (L/R)") || name.contains("Joy-Con") { joycon_type = "Dual"; }
+
+                    let _ = app_handle.emit(
+                        "controller-status",
+                        json!({"connected": true, "name": name, "battery": battery, "joyconType": joycon_type}),
+                    );
+                    last_status_emit = Instant::now();
+                }
 
                 let settings = app_handle.state::<ControlSettings>();
                 let motor_scale = settings.motor_speed.load(Ordering::Relaxed) as f32 / 100.0;
                 let servo_sens = settings.servo_sensitivity.load(Ordering::Relaxed) as f32 / 100.0;
                 let viewport_turn = settings.viewport_turn.load(Ordering::Relaxed);
 
-                let mut throttle = gamepad.value(Axis::LeftStickY);
-                let mut steering = gamepad.value(Axis::LeftStickX);
+                let lx_c = settings.lx_center.load(Ordering::Relaxed) as f32 / 1000.0;
+                let ly_c = settings.ly_center.load(Ordering::Relaxed) as f32 / 1000.0;
+                let rx_c = settings.rx_center.load(Ordering::Relaxed) as f32 / 1000.0;
+                let ry_c = settings.ry_center.load(Ordering::Relaxed) as f32 / 1000.0;
                 
-                let r_pan = gamepad.value(Axis::RightStickX);
-                let r_tilt = gamepad.value(Axis::RightStickY);
+                let lx_d = settings.lx_deadzone.load(Ordering::Relaxed) as f32 / 1000.0;
+                let ly_d = settings.ly_deadzone.load(Ordering::Relaxed) as f32 / 1000.0;
+                let rx_d = settings.rx_deadzone.load(Ordering::Relaxed) as f32 / 1000.0;
+                let ry_d = settings.ry_deadzone.load(Ordering::Relaxed) as f32 / 1000.0;
 
-                // Apply deadzone to prevent drift and runaway motors
-                if throttle.abs() < 0.20 {
-                    throttle = 0.0;
-                }
-                if steering.abs() < 0.20 {
-                    steering = 0.0;
-                }
+                let mut throttle = gamepad.value(Axis::LeftStickY) - ly_c;
+                let mut steering = gamepad.value(Axis::LeftStickX) - lx_c;
+                let mut r_pan = gamepad.value(Axis::RightStickX) - rx_c;
+                let mut r_tilt = gamepad.value(Axis::RightStickY) - ry_c;
+
+                // Apply deadzone and rescale
+                if throttle.abs() < ly_d { throttle = 0.0; } else { throttle = throttle.signum() * (throttle.abs() - ly_d) / (1.0 - ly_d.abs()); }
+                if steering.abs() < lx_d { steering = 0.0; } else { steering = steering.signum() * (steering.abs() - lx_d) / (1.0 - lx_d.abs()); }
+                if r_pan.abs() < rx_d { r_pan = 0.0; } else { r_pan = r_pan.signum() * (r_pan.abs() - rx_d) / (1.0 - rx_d.abs()); }
+                if r_tilt.abs() < ry_d { r_tilt = 0.0; } else { r_tilt = r_tilt.signum() * (r_tilt.abs() - ry_d) / (1.0 - ry_d.abs()); }
 
                 throttle *= motor_scale;
                 steering *= motor_scale;
@@ -104,8 +139,8 @@ pub fn start_controller_loop(app_handle: AppHandle) {
                 if gamepad.is_pressed(Button::DPadDown) || dpad_y < -0.5 { tilt = -servo_sens; }
                 
                 // Right Stick Absolute
-                if r_pan.abs() > 0.20 { pan = r_pan * servo_sens; }
-                if r_tilt.abs() > 0.20 { tilt = r_tilt * servo_sens; }
+                if r_pan.abs() > 0.0 { pan = r_pan * servo_sens; }
+                if r_tilt.abs() > 0.0 { tilt = r_tilt * servo_sens; }
 
                 // Clamp pan and tilt (-1.0 to 1.0 instead of degrees)
                 pan = pan.clamp(-1.0, 1.0);
