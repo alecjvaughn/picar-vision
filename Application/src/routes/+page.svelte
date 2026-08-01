@@ -364,19 +364,25 @@
     // If it's a Single Joy-Con, fix its layout
     const isSingleJoyCon = pad.id.includes("Joy-Con (L)") || pad.id.includes("Joy-Con (R)");
     if (isSingleJoyCon) {
-      // Force the only active stick to be the Driving stick (lx/ly)
-      if (Math.abs(rx) > 0 || Math.abs(ry) > 0) {
+      // macOS treats Single Joy-Cons as "Micro Gamepads", meaning the analog stick
+      // is often zeroed out and mapped exclusively to the digital D-Pad (buttons 12-15).
+      // We must map it back to motor controls (lx, ly) so the car can drive!
+      if (lx === 0 && ly === 0) {
+        if (pad.buttons[12]?.pressed) ly = -1; // Up -> forward throttle
+        if (pad.buttons[13]?.pressed) ly = 1;  // Down -> reverse throttle
+        if (pad.buttons[14]?.pressed) lx = -1; // Left -> steer left
+        if (pad.buttons[15]?.pressed) lx = 1;  // Right -> steer right
+      } else if (Math.abs(rx) > 0 || Math.abs(ry) > 0) {
         lx = rx;
         ly = ry;
-        rx = 0;
-        ry = 0;
       }
       
-      // Map the 4 face buttons to act as the Camera D-Pad
-      if (pad.buttons[3]?.pressed) up = true;    // Top button
-      if (pad.buttons[0]?.pressed) down = true;  // Bottom button
-      if (pad.buttons[2]?.pressed) left = true;  // Left button
-      if (pad.buttons[1]?.pressed) right = true; // Right button
+      // And macOS maps the physical face buttons to 0, 1, 2, 3.
+      // We map these to the Camera D-Pad variables.
+      up = pad.buttons[3]?.pressed || false;    // Top button
+      down = pad.buttons[0]?.pressed || false;  // Bottom button
+      left = pad.buttons[2]?.pressed || false;  // Left button
+      right = pad.buttons[1]?.pressed || false; // Right button
     }
 
     joystickX = lx;
