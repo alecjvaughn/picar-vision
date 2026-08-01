@@ -332,7 +332,7 @@
     if (showGamepadModal) {
       gamepads = pads.map((p) => ({
         id: p.id,
-        name: p.id.replace(/ \(.+\)/, ''),
+        name: p.id.split(' (Vendor')[0],
         joyconType: p.id.includes("Joy-Con") ? "Virtual" : "Standard",
         battery: "OS Managed",
         active: activeIdStr === p.id
@@ -345,9 +345,11 @@
       return;
     }
 
-    controllerStatus = pad.id.replace(/ \(.+\)/, '');
+    // Strip out the ugly Vendor/Product ID string that Chrome appends
+    const cleanName = pad.id.split(' (Vendor')[0];
+    controllerStatus = cleanName;
     controllerBattery = "OS Managed";
-    controllerType = pad.id.includes("Joy-Con") ? "Nintendo Joy-Cons" : "Standard Gamepad";
+    controllerType = cleanName;
 
     const deadzone = 0.1;
     let lx = Math.abs(pad.axes[0]) < deadzone ? 0 : pad.axes[0];
