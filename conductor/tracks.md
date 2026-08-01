@@ -19,3 +19,8 @@ This file tracks all major development tracks for the `picar-vision` project. Ea
 
 - [x] **Track: Virtual controls and sensitivity dials**
 *Link: [./tracks/virtual-controls_20260731/](./tracks/virtual-controls_20260731/)*
+
+---
+
+- [ ] **Track: Full JoyCon support**
+*Link: [./tracks/joycon-support_20260801/](./tracks/joycon-support_20260801/)*
