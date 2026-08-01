@@ -93,8 +93,8 @@ pub fn run() {
             set_active_gamepad
         ])
         .setup(|app| {
-            let handle = app.handle().clone();
-            controller::start_controller_loop(handle);
+            // let handle = app.handle().clone();
+            // controller::start_controller_loop(handle); // Replaced by Web Gamepad API in frontend
             Ok(())
         })
         .run(tauri::generate_context!())

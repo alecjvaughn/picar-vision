@@ -169,6 +169,12 @@
       const camScale = Number(servoSensitivity) / 100.0;
       payload.pan = cameraX * camScale;
       payload.tilt = -cameraY * camScale;
+
+      if (gpDpadLeft || arrLeft) payload.pan = -camScale;
+      if (gpDpadRight || arrRight) payload.pan = camScale;
+      if (gpDpadUp || arrUp) payload.tilt = camScale;
+      if (gpDpadDown || arrDown) payload.tilt = -camScale;
+
       if (centerCamera) {
         payload.pan = 0.0;
         payload.tilt = 0.0;
@@ -288,10 +294,58 @@
   let unlistens: Array<() => void> = [];
   let animationFrameId: number;
   let lastFrameTime: number;
+  let lastWebGamepadState = { lx: 0, ly: 0, rx: 0, ry: 0, up: false, down: false, left: false, right: false, r1: false };
+
+  function pollWebGamepad() {
+    const pads = navigator.getGamepads ? navigator.getGamepads() : [];
+    const pad = pads.find(p => p !== null && p.connected);
+    if (!pad) return;
+
+    controllerStatus = pad.id.replace(/ \(.+\)/, '');
+    controllerBattery = "OS Managed";
+    controllerType = "Web Gamepad";
+
+    const deadzone = 0.1;
+    const lx = Math.abs(pad.axes[0]) < deadzone ? 0 : pad.axes[0];
+    const ly = Math.abs(pad.axes[1]) < deadzone ? 0 : pad.axes[1];
+    const rx = Math.abs(pad.axes[2]) < deadzone ? 0 : pad.axes[2];
+    const ry = Math.abs(pad.axes[3]) < deadzone ? 0 : pad.axes[3];
+
+    const up = pad.buttons[12]?.pressed || false;
+    const down = pad.buttons[13]?.pressed || false;
+    const left = pad.buttons[14]?.pressed || false;
+    const right = pad.buttons[15]?.pressed || false;
+    const r1 = pad.buttons[5]?.pressed || false; // R1
+
+    joystickX = lx;
+    joystickY = ly;
+    cameraX = rx;
+    cameraY = ry;
+
+    gpDpadUp = up;
+    gpDpadDown = down;
+    gpDpadLeft = left;
+    gpDpadRight = right;
+    gpBtnSnap = r1;
+
+    const changed = 
+      lx !== lastWebGamepadState.lx || ly !== lastWebGamepadState.ly || 
+      rx !== lastWebGamepadState.rx || ry !== lastWebGamepadState.ry ||
+      up !== lastWebGamepadState.up || down !== lastWebGamepadState.down ||
+      left !== lastWebGamepadState.left || right !== lastWebGamepadState.right ||
+      r1 !== lastWebGamepadState.r1;
+
+    if (changed) {
+      sendKeyboardCommand(true);
+      lastWebGamepadState = { lx, ly, rx, ry, up, down, left, right, r1 };
+    }
+  }
 
   function runCameraLoop(timestamp: number) {
     const dt = timestamp - lastFrameTime;
     lastFrameTime = timestamp;
+
+    pollWebGamepad();
 
     if (connected && servoMode === 'incremental' && (cameraX !== 0 || cameraY !== 0 || centerCamera)) {
       if (centerCamera) {
