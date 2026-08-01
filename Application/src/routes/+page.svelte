@@ -295,6 +295,7 @@
   let animationFrameId: number;
   let lastFrameTime: number;
   let activeGamepadId: string | null = null;
+  let autoSelectedPadId: string | null = null;
   let lastWebGamepadState = { lx: 0, ly: 0, rx: 0, ry: 0, up: false, down: false, left: false, right: false, r1: false };
 
   function setGamepadMode(id: string | null) {
@@ -304,17 +305,30 @@
   function pollWebGamepad() {
     const pads = navigator.getGamepads ? Array.from(navigator.getGamepads()).filter(p => p !== null && p.connected) : [];
     
+    // Smart Auto-Select: switch to whatever gamepad has activity
+    if (activeGamepadId === null) {
+      for (const p of pads) {
+        const hasActivity = p.axes.some(a => Math.abs(a) > 0.2) || p.buttons.some(b => b.pressed);
+        if (hasActivity) {
+          autoSelectedPadId = p.id;
+          break; // First one with activity wins
+        }
+      }
+    }
+
+    let activeIdStr = activeGamepadId === null ? (autoSelectedPadId || (pads[0] ? pads[0].id : null)) : activeGamepadId;
+
     if (showGamepadModal) {
-      gamepads = pads.map((p, i) => ({
+      gamepads = pads.map((p) => ({
         id: p.id,
         name: p.id.replace(/ \(.+\)/, ''),
         joyconType: p.id.includes("Joy-Con") ? "Virtual" : "Standard",
         battery: "OS Managed",
-        active: activeGamepadId === p.id || (activeGamepadId === null && i === 0)
+        active: activeIdStr === p.id
       }));
     }
 
-    const pad = activeGamepadId === null ? pads[0] : pads.find(p => p.id === activeGamepadId);
+    const pad = pads.find(p => p.id === activeIdStr);
     if (!pad || activeGamepadId === 'none') {
       controllerStatus = "Not Detected";
       return;
