@@ -20,6 +20,16 @@
   let keyD = $state(false);
   let motorSpeed = $state(100);
   let servoSensitivity = $state(50);
+  let followCamera = $state(false);
+
+  // Sync settings to Rust controller
+  $effect(() => {
+    invoke('update_settings', { 
+      motorSpeed: Number(motorSpeed), 
+      servoSensitivity: Number(servoSensitivity),
+      followCamera 
+    }).catch(console.error);
+  });
   
   // Gamepad State for UI (visual only)
   let gpDpadUp = $state(false);
@@ -39,7 +49,7 @@
   let pan = $state(0.0);
   let tilt = $state(0.0);
   // FIXME: Incremental mode is currently disabled due to servo spasming issues
-  let servoMode = $state<'absolute'>('absolute');
+  let servoMode = $state<'incremental' | 'absolute'>('absolute');
 
   function setVArrow(dir: 'Up'|'Down'|'Left'|'Right', state: boolean) {
     if (dir === 'Up') arrUp = state;
@@ -120,7 +130,7 @@
     const scale = Number(motorSpeed) / 100.0;
     // Map to standard axes: throttle is positive up, steering is positive right
     const throttle = -joystickY * scale; // invert Y so W is positive throttle
-    const steering = joystickX * scale;
+    let steering = joystickX * scale;
     
     let payload: any = {
       type: 'command',
@@ -140,6 +150,11 @@
     } else if (includeCamera) {
       payload.pan = pan;
       payload.tilt = tilt;
+    }
+
+    if (followCamera) {
+      steering = (servoMode === 'absolute') ? payload.pan : pan;
+      payload.steering = steering;
     }
 
     try {
@@ -382,17 +397,23 @@
         <div class="sliders">
           <div class="slider-group">
             <label for="motor-speed">Motor Speed: {motorSpeed}%</label>
-            <input id="motor-speed" type="range" min="0" max="100" bind:value={motorSpeed} oninput={sendKeyboardCommand} />
+            <input id="motor-speed" type="range" min="0" max="100" bind:value={motorSpeed} oninput={() => sendKeyboardCommand()} />
           </div>
           <div class="slider-group">
             <label for="servo-sens">Servo Sensitivity: {servoSensitivity}%</label>
             <input id="servo-sens" type="range" min="0" max="100" bind:value={servoSensitivity} oninput={() => sendKeyboardCommand()} />
           </div>
-          <div class="sensor-row" style="margin-bottom: 0; margin-top: 0.5rem;">
-            <span style="font-size: 0.85rem; color: var(--text-secondary);">Camera Mode</span>
-            <button class="mode-toggle" disabled style="opacity: 0.5; cursor: not-allowed;" title="FIXME: Incremental mode disabled due to servo spasms">
-              Absolute (Fixed)
-            </button>
+          <div class="sensor-row" style="margin-bottom: 0; margin-top: 0.5rem; justify-content: space-between;">
+            <label style="font-size: 0.85rem; color: var(--text-secondary); display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+              <input type="checkbox" bind:checked={followCamera} onchange={() => sendKeyboardCommand()} />
+              Drive Where You Look
+            </label>
+            <div style="display: flex; align-items: center; gap: 0.5rem;">
+              <span style="font-size: 0.85rem; color: var(--text-secondary);">Camera Mode</span>
+              <button class="mode-toggle" disabled style="opacity: 0.5; cursor: not-allowed;" title="FIXME: Incremental mode disabled due to servo spasms">
+                Absolute
+              </button>
+            </div>
           </div>
         </div>
 
