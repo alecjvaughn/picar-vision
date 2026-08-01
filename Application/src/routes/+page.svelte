@@ -294,12 +294,31 @@
   let unlistens: Array<() => void> = [];
   let animationFrameId: number;
   let lastFrameTime: number;
+  let activeGamepadId: string | null = null;
   let lastWebGamepadState = { lx: 0, ly: 0, rx: 0, ry: 0, up: false, down: false, left: false, right: false, r1: false };
 
+  function setGamepadMode(id: string | null) {
+    activeGamepadId = id;
+  }
+
   function pollWebGamepad() {
-    const pads = navigator.getGamepads ? navigator.getGamepads() : [];
-    const pad = pads.find(p => p !== null && p.connected);
-    if (!pad) return;
+    const pads = navigator.getGamepads ? Array.from(navigator.getGamepads()).filter(p => p !== null && p.connected) : [];
+    
+    if (showGamepadModal) {
+      gamepads = pads.map((p, i) => ({
+        id: p.id,
+        name: p.id.replace(/ \(.+\)/, ''),
+        joyconType: p.id.includes("Joy-Con") ? "Virtual" : "Standard",
+        battery: "OS Managed",
+        active: activeGamepadId === p.id || (activeGamepadId === null && i === 0)
+      }));
+    }
+
+    const pad = activeGamepadId === null ? pads[0] : pads.find(p => p.id === activeGamepadId);
+    if (!pad || activeGamepadId === 'none') {
+      controllerStatus = "Not Detected";
+      return;
+    }
 
     controllerStatus = pad.id.replace(/ \(.+\)/, '');
     controllerBattery = "OS Managed";
@@ -607,7 +626,7 @@
   <div class="modal-content glass-panel" style="min-width: 500px;">
     <div style="display: flex; justify-content: space-between; align-items: center;">
       <h2>Connected Gamepads</h2>
-      <button class="btn-primary" onclick={() => invoke('set_active_gamepad', { id: -1 })} style="font-size: 0.8rem; padding: 0.4rem;">Auto Select</button>
+      <button class="btn-primary" onclick={() => setGamepadMode(null)} style="font-size: 0.8rem; padding: 0.4rem;">Auto Select</button>
     </div>
     
     {#if gamepads.length === 0}
@@ -621,7 +640,7 @@
               <span class="battery-badge">{gp.battery}</span>
             </div>
             <div class="gamepad-actions">
-              <button class="btn-primary" disabled={gp.active} onclick={() => invoke('set_active_gamepad', { id: gp.id })}>Select</button>
+              <button class="btn-primary" disabled={gp.active} onclick={() => setGamepadMode(gp.id)}>Select</button>
             </div>
           </div>
         {/each}
@@ -629,7 +648,7 @@
     {/if}
 
     <div class="modal-actions" style="justify-content: space-between;">
-      <button class="btn-danger" onclick={() => invoke('set_active_gamepad', { id: -2 })}>Disconnect All</button>
+      <button class="btn-danger" onclick={() => setGamepadMode('none')}>Disconnect All</button>
       <button class="btn-primary" onclick={() => showGamepadModal = false}>Close</button>
     </div>
   </div>
