@@ -350,16 +350,34 @@
     controllerType = pad.id.includes("Joy-Con") ? "Nintendo Joy-Cons" : "Standard Gamepad";
 
     const deadzone = 0.1;
-    const lx = Math.abs(pad.axes[0]) < deadzone ? 0 : pad.axes[0];
-    const ly = Math.abs(pad.axes[1]) < deadzone ? 0 : pad.axes[1];
-    const rx = Math.abs(pad.axes[2]) < deadzone ? 0 : pad.axes[2];
-    const ry = Math.abs(pad.axes[3]) < deadzone ? 0 : pad.axes[3];
+    let lx = Math.abs(pad.axes[0]) < deadzone ? 0 : pad.axes[0];
+    let ly = Math.abs(pad.axes[1]) < deadzone ? 0 : pad.axes[1];
+    let rx = Math.abs(pad.axes[2]) < deadzone ? 0 : pad.axes[2];
+    let ry = Math.abs(pad.axes[3]) < deadzone ? 0 : pad.axes[3];
 
-    const up = pad.buttons[12]?.pressed || false;
-    const down = pad.buttons[13]?.pressed || false;
-    const left = pad.buttons[14]?.pressed || false;
-    const right = pad.buttons[15]?.pressed || false;
+    let up = pad.buttons[12]?.pressed || false;
+    let down = pad.buttons[13]?.pressed || false;
+    let left = pad.buttons[14]?.pressed || false;
+    let right = pad.buttons[15]?.pressed || false;
     const r1 = pad.buttons[5]?.pressed || false; // R1
+
+    // If it's a Single Joy-Con, fix its layout
+    const isSingleJoyCon = pad.id.includes("Joy-Con (L)") || pad.id.includes("Joy-Con (R)");
+    if (isSingleJoyCon) {
+      // Force the only active stick to be the Driving stick (lx/ly)
+      if (Math.abs(rx) > 0 || Math.abs(ry) > 0) {
+        lx = rx;
+        ly = ry;
+        rx = 0;
+        ry = 0;
+      }
+      
+      // Map the 4 face buttons to act as the Camera D-Pad
+      if (pad.buttons[3]?.pressed) up = true;    // Top button
+      if (pad.buttons[0]?.pressed) down = true;  // Bottom button
+      if (pad.buttons[2]?.pressed) left = true;  // Left button
+      if (pad.buttons[1]?.pressed) right = true; // Right button
+    }
 
     joystickX = lx;
     joystickY = ly;
