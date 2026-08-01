@@ -90,7 +90,7 @@ pub fn start_controller_loop(app_handle: AppHandle) {
                 steering *= motor_scale;
 
                 // Handle continuous D-Pad and Right Stick servo movement
-                let step = 0.05 * servo_sens; // max 5% per loop (-1.0 to 1.0 range)
+                let step = 0.016 * servo_sens; // max 1.6% per loop at 60Hz (-1.0 to 1.0 range)
                 
                 let dpad_x = gamepad.axis_data(Axis::DPadX).map(|a| a.value()).unwrap_or(0.0);
                 let dpad_y = gamepad.axis_data(Axis::DPadY).map(|a| a.value()).unwrap_or(0.0);
@@ -148,7 +148,7 @@ pub fn start_controller_loop(app_handle: AppHandle) {
                 }
             }
 
-            std::thread::sleep(Duration::from_millis(50));
+            std::thread::sleep(Duration::from_millis(16));
         }
     });
 }

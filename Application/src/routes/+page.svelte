@@ -243,27 +243,33 @@
   }
 
   let unlistens: Array<() => void> = [];
-  let cameraInterval: any;
+  let animationFrameId: number;
+  let lastFrameTime: number;
+
+  function runCameraLoop(timestamp: number) {
+    const dt = timestamp - lastFrameTime;
+    lastFrameTime = timestamp;
+
+    if (connected && servoMode === 'incremental' && (cameraX !== 0 || cameraY !== 0 || centerCamera)) {
+      if (centerCamera) {
+        pan = 0.0;
+        tilt = 0.0;
+        centerCamera = false;
+      } else {
+        const speed = (Number(servoSensitivity) / 100.0) * 0.0015; // 1.5 units per second at max speed
+        pan += cameraX * speed * dt;
+        tilt += -cameraY * speed * dt;
+        pan = Math.max(-1, Math.min(1, pan));
+        tilt = Math.max(-1, Math.min(1, tilt));
+      }
+      sendKeyboardCommand(true);
+    }
+    animationFrameId = requestAnimationFrame(runCameraLoop);
+  }
 
   onMount(async () => {
-    // Incremental camera control loop
-    cameraInterval = setInterval(() => {
-      if (connected && servoMode === 'incremental' && (cameraX !== 0 || cameraY !== 0 || centerCamera)) {
-        if (centerCamera) {
-          pan = 0.0;
-          tilt = 0.0;
-          centerCamera = false;
-        } else {
-          // Multiply degrees step size based on sensitivity slider
-          const step = (Number(servoSensitivity) / 100.0) * 0.05;
-          pan += cameraX * step;
-          tilt += -cameraY * step; // Inverted
-          pan = Math.max(-1, Math.min(1, pan));
-          tilt = Math.max(-1, Math.min(1, tilt));
-        }
-        sendKeyboardCommand(true);
-      }
-    }, 50);
+    lastFrameTime = performance.now();
+    animationFrameId = requestAnimationFrame(runCameraLoop);
     unlistens.push(await listen('ws-connected', () => { connected = true; isDisconnecting = false; }));
     unlistens.push(await listen('ws-disconnected', () => { connected = false; isDisconnecting = false; }));
     unlistens.push(await listen('controller-status', (event: any) => {
@@ -300,7 +306,7 @@
   });
   
   onDestroy(() => {
-    if (cameraInterval) clearInterval(cameraInterval);
+    if (animationFrameId) cancelAnimationFrame(animationFrameId);
     unlistens.forEach(u => u());
     window.removeEventListener('keydown', handleKeydown);
     window.removeEventListener('keyup', handleKeyup);
