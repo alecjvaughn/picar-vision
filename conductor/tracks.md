@@ -16,3 +16,6 @@ This file tracks all major development tracks for the `picar-vision` project. Ea
 
 - [x] **Track: Robust Infrastructure (GitOps, Terraform, ArgoCD)**
 *Link: [./tracks/infrastructure_20260731/](./tracks/infrastructure_20260731/)*
+
+- [ ] **Track: Virtual controls and sensitivity dials**
+*Link: [./tracks/virtual-controls_20260731/](./tracks/virtual-controls_20260731/)*
