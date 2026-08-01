@@ -89,32 +89,22 @@ pub fn start_controller_loop(app_handle: AppHandle) {
                 throttle *= motor_scale;
                 steering *= motor_scale;
 
-                // Handle continuous D-Pad and Right Stick servo movement
-                let step = 0.016 * servo_sens; // max 1.6% per loop at 60Hz (-1.0 to 1.0 range)
+                // FIXME: Incremental mode is disabled due to servo spasms. Force absolute mode.
+                pan = 0.0;
+                tilt = 0.0;
                 
                 let dpad_x = gamepad.axis_data(Axis::DPadX).map(|a| a.value()).unwrap_or(0.0);
                 let dpad_y = gamepad.axis_data(Axis::DPadY).map(|a| a.value()).unwrap_or(0.0);
 
-                if gamepad.is_pressed(Button::DPadLeft) || dpad_x < -0.5 {
-                    pan -= step;
-                }
-                if gamepad.is_pressed(Button::DPadRight) || dpad_x > 0.5 {
-                    pan += step;
-                }
-                if gamepad.is_pressed(Button::DPadUp) || dpad_y > 0.5 {
-                    tilt += step; // Inverted: UP is positive tilt
-                }
-                if gamepad.is_pressed(Button::DPadDown) || dpad_y < -0.5 {
-                    tilt -= step;
-                }
+                // D-Pad Absolute
+                if gamepad.is_pressed(Button::DPadLeft) || dpad_x < -0.5 { pan = -servo_sens; }
+                if gamepad.is_pressed(Button::DPadRight) || dpad_x > 0.5 { pan = servo_sens; }
+                if gamepad.is_pressed(Button::DPadUp) || dpad_y > 0.5 { tilt = servo_sens; } // UP is positive tilt
+                if gamepad.is_pressed(Button::DPadDown) || dpad_y < -0.5 { tilt = -servo_sens; }
                 
-                // Add right joystick analog values if outside deadzone
-                if r_pan.abs() > 0.20 {
-                    pan += step * r_pan; // Right is positive pan
-                }
-                if r_tilt.abs() > 0.20 {
-                    tilt += step * r_tilt; // Up is positive tilt (assuming Gilrs Y is positive UP)
-                }
+                // Right Stick Absolute
+                if r_pan.abs() > 0.20 { pan = r_pan * servo_sens; }
+                if r_tilt.abs() > 0.20 { tilt = r_tilt * servo_sens; }
 
                 // Clamp pan and tilt (-1.0 to 1.0 instead of degrees)
                 pan = pan.clamp(-1.0, 1.0);

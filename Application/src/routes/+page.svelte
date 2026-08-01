@@ -35,10 +35,11 @@
   let arrRight = $state(false);
   let centerCamera = $state(false);
 
-  // Camera Absolute State (incremental)
+  // Camera Absolute State
   let pan = $state(0.0);
   let tilt = $state(0.0);
-  let servoMode = $state<'incremental' | 'absolute'>('incremental');
+  // FIXME: Incremental mode is currently disabled due to servo spasming issues
+  let servoMode = $state<'absolute'>('absolute');
 
   function setVArrow(dir: 'Up'|'Down'|'Left'|'Right', state: boolean) {
     if (dir === 'Up') arrUp = state;
@@ -389,8 +390,8 @@
           </div>
           <div class="sensor-row" style="margin-bottom: 0; margin-top: 0.5rem;">
             <span style="font-size: 0.85rem; color: var(--text-secondary);">Camera Mode</span>
-            <button class="mode-toggle" onclick={() => servoMode = (servoMode === 'incremental' ? 'absolute' : 'incremental')}>
-              {servoMode === 'incremental' ? 'Incremental' : 'Absolute'}
+            <button class="mode-toggle" disabled style="opacity: 0.5; cursor: not-allowed;" title="FIXME: Incremental mode disabled due to servo spasms">
+              Absolute (Fixed)
             </button>
           </div>
         </div>
