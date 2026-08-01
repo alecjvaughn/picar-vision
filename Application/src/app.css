@@ -65,7 +65,7 @@ button:hover {
   transform: translateY(-1px);
 }
 
-input {
+input:not([type="range"]) {
   background: rgba(0, 0, 0, 0.2);
   border: 1px solid var(--border-color);
   color: var(--text-primary);
@@ -76,6 +76,6 @@ input {
   transition: border-color 0.2s ease;
 }
 
-input:focus {
+input:not([type="range"]):focus {
   border-color: var(--accent-primary);
 }
