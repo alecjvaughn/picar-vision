@@ -322,7 +322,7 @@
 
     controllerStatus = pad.id.replace(/ \(.+\)/, '');
     controllerBattery = "OS Managed";
-    controllerType = "Web Gamepad";
+    controllerType = pad.id.includes("Joy-Con") ? "Nintendo Joy-Cons" : "Standard Gamepad";
 
     const deadzone = 0.1;
     const lx = Math.abs(pad.axes[0]) < deadzone ? 0 : pad.axes[0];
