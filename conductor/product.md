@@ -13,6 +13,7 @@ To build a high-performance, modern desktop application that serves as the comma
 
 ## Core Features
 - **Remote Telemetry and Control:** Low-latency communication to steer the car, control servos, and monitor sensor data.
+- **Comprehensive Gamepad Support:** Seamless integration with standard gamepads and Nintendo JoyCons (single and dual configurations), including real-time battery telemetry and in-app joystick calibration.
 - **Advanced Computer Vision:** Integration of YOLOv8 for real-time object detection and tracking, replacing the legacy Haar Cascade implementation.
 - **Modern Desktop Interface:** A fast, responsive, and resource-efficient desktop UI built with Tauri and Rust.
 - **Robust Infrastructure:** Automated, GitOps-driven deployment using GitHub Actions, Terraform, kind (Kubernetes IN Docker), and ArgoCD for reliable software delivery and potential cloud-edge integrations.
