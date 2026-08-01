@@ -35,6 +35,11 @@
   
   // Calibration State
   let showCalibration = $state(false);
+  
+  // Gamepad Switcher State
+  let showGamepadModal = $state(false);
+  let gamepads = $state<any[]>([]);
+
   let calLxCenter = $state(0);
   let calLyCenter = $state(0);
   let calRxCenter = $state(0);
@@ -321,6 +326,9 @@
         controllerType = "Standard";
       }
     }));
+    unlistens.push(await listen('gamepads-list', (event: any) => {
+      gamepads = event.payload;
+    }));
     unlistens.push(await listen('telemetry', (event: any) => {
       if (isDisconnecting) return;
       connected = true; // Recover connection state if UI hot-reloads
@@ -405,7 +413,10 @@
         </div>
         
         <div class="glass-panel telemetry-card">
-          <h3>Controller Status</h3>
+          <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); margin-bottom: 1rem; padding-bottom: 0.5rem;">
+            <h3 style="margin: 0; border: none; padding: 0;">Controller Status</h3>
+            <button class="btn-primary" onclick={() => showGamepadModal = true} style="font-size: 0.75rem; padding: 0.25rem 0.5rem;">Find</button>
+          </div>
           <div class="sensor-row">
             <span>Gamepad</span>
             <span class="value" class:disconnected={controllerStatus === "Not Detected"}>{controllerStatus !== "Not Detected" ? controllerType : "Not Detected"}</span>
@@ -532,6 +543,40 @@
     <div class="modal-actions">
       <button class="btn-primary" onclick={saveCalibration}>Save</button>
       <button class="btn-danger" onclick={() => showCalibration = false}>Cancel</button>
+    </div>
+  </div>
+</div>
+{/if}
+
+{#if showGamepadModal}
+<div class="modal-backdrop">
+  <div class="modal-content glass-panel" style="min-width: 500px;">
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+      <h2>Connected Gamepads</h2>
+      <button class="btn-primary" onclick={() => invoke('set_active_gamepad', { id: -1 })} style="font-size: 0.8rem; padding: 0.4rem;">Auto Select</button>
+    </div>
+    
+    {#if gamepads.length === 0}
+      <p style="color: var(--text-secondary); text-align: center; padding: 2rem 0;">No gamepads detected by the system.</p>
+    {:else}
+      <div class="gamepads-list">
+        {#each gamepads as gp}
+          <div class="gamepad-item" class:active={gp.active}>
+            <div class="gamepad-info">
+              <strong>{gp.name}</strong> ({gp.joyconType})
+              <span class="battery-badge">{gp.battery}</span>
+            </div>
+            <div class="gamepad-actions">
+              <button class="btn-primary" disabled={gp.active} onclick={() => invoke('set_active_gamepad', { id: gp.id })}>Select</button>
+            </div>
+          </div>
+        {/each}
+      </div>
+    {/if}
+
+    <div class="modal-actions" style="justify-content: space-between;">
+      <button class="btn-danger" onclick={() => invoke('set_active_gamepad', { id: -2 })}>Disconnect All</button>
+      <button class="btn-primary" onclick={() => showGamepadModal = false}>Close</button>
     </div>
   </div>
 </div>
@@ -952,5 +997,61 @@
     justify-content: flex-end;
     gap: 1rem;
     margin-top: 1rem;
+  }
+
+  .gamepads-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    max-height: 300px;
+    overflow-y: auto;
+  }
+
+  .gamepad-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+  }
+
+  .gamepad-item.active {
+    background: rgba(96, 165, 250, 0.1);
+    border-color: var(--accent-primary);
+  }
+
+  .gamepad-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+  }
+
+  .gamepad-info strong {
+    color: white;
+    font-size: 1rem;
+  }
+
+  .battery-badge {
+    font-size: 0.75rem;
+    background: rgba(16, 185, 129, 0.2);
+    color: var(--accent-success);
+    padding: 2px 6px;
+    border-radius: 4px;
+    display: inline-block;
+    width: max-content;
+  }
+
+  .gamepad-actions {
+    display: flex;
+    gap: 0.5rem;
+  }
+
+  .gamepad-actions button {
+    font-size: 0.8rem;
+    padding: 0.4rem 0.75rem;
   }
 </style>

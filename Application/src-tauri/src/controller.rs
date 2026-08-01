@@ -16,6 +16,7 @@ pub fn start_controller_loop(app_handle: AppHandle) {
             }
         };
 
+        let mut auto_active_gamepad = None;
         let mut active_gamepad = None;
         let mut pan: f32 = 0.0;
         let mut tilt: f32 = 0.0;
@@ -28,23 +29,22 @@ pub fn start_controller_loop(app_handle: AppHandle) {
         let mut last_status_emit = Instant::now();
 
         loop {
+            let settings = app_handle.state::<ControlSettings>();
+            let force_active_gamepad = settings.force_active_gamepad.load(Ordering::Relaxed);
+
             // Examine new events
             while let Some(Event { id, event, .. }) = gilrs.next_event() {
-                active_gamepad = Some(id);
+                auto_active_gamepad = Some(id);
 
                 match event {
                     EventType::Connected => {
                         let name = gilrs.gamepad(id).name().to_string();
-                        let _ = app_handle.emit(
-                            "controller-status",
-                            json!({"connected": true, "name": name, "battery": "Unknown"}),
-                        );
+                        // Status will be handled by the periodic loop
                     }
                     EventType::Disconnected => {
-                        if Some(id) == active_gamepad {
-                            active_gamepad = None;
+                        if Some(id) == auto_active_gamepad {
+                            auto_active_gamepad = None;
                         }
-                        let _ = app_handle.emit("controller-status", json!({"connected": false}));
                     }
                     EventType::ButtonPressed(button, _) => {
                         let button_name = format!("{:?}", button);
@@ -69,13 +69,29 @@ pub fn start_controller_loop(app_handle: AppHandle) {
                 }
             }
 
-            // If we have an active gamepad, poll its state for commands
-            if let Some(id) = active_gamepad {
-                let gamepad = gilrs.gamepad(id);
-                let name = gamepad.name().to_string();
-                
-                // Periodic status emit for battery & JoyCon detection
-                if last_status_emit.elapsed() > Duration::from_secs(1) {
+            // Resolve active gamepad
+            if force_active_gamepad == -2 {
+                active_gamepad = None;
+            } else if force_active_gamepad >= 0 {
+                let target_id = force_active_gamepad as usize;
+                active_gamepad = None;
+                for (id, _) in gilrs.gamepads() {
+                    let id_usize: usize = id.into();
+                    if id_usize == target_id {
+                        active_gamepad = Some(id);
+                        break;
+                    }
+                }
+            } else {
+                active_gamepad = auto_active_gamepad;
+            }
+
+            // Periodic status emit for gamepads list and active status
+            if last_status_emit.elapsed() > Duration::from_secs(1) {
+                let mut pads = Vec::new();
+                for (id, gamepad) in gilrs.gamepads() {
+                    let id_usize: usize = id.into();
+                    let name = gamepad.name().to_string();
                     let power = gamepad.power_info();
                     let battery = match power {
                         gilrs::PowerInfo::Unknown => "Unknown".to_string(),
@@ -88,15 +104,36 @@ pub fn start_controller_loop(app_handle: AppHandle) {
                     if name.contains("Joy-Con (L)") { joycon_type = "Single L"; }
                     else if name.contains("Joy-Con (R)") { joycon_type = "Single R"; }
                     else if name.contains("Joy-Con (L/R)") || name.contains("Joy-Con") { joycon_type = "Dual"; }
-
-                    let _ = app_handle.emit(
-                        "controller-status",
-                        json!({"connected": true, "name": name, "battery": battery, "joyconType": joycon_type}),
-                    );
-                    last_status_emit = Instant::now();
+                    
+                    pads.push(json!({
+                        "id": id_usize,
+                        "name": name,
+                        "battery": battery,
+                        "joyconType": joycon_type,
+                        "active": Some(id) == active_gamepad
+                    }));
                 }
+                
+                let _ = app_handle.emit("gamepads-list", json!(pads));
+                
+                if let Some(id) = active_gamepad {
+                    let id_usize: usize = id.into();
+                    if let Some(p) = pads.iter().find(|p| p["id"] == json!(id_usize)) {
+                        let _ = app_handle.emit(
+                            "controller-status",
+                            json!({"connected": true, "name": p["name"], "battery": p["battery"], "joyconType": p["joyconType"]}),
+                        );
+                    }
+                } else {
+                    let _ = app_handle.emit("controller-status", json!({"connected": false}));
+                }
+                
+                last_status_emit = Instant::now();
+            }
 
-                let settings = app_handle.state::<ControlSettings>();
+            // If we have an active gamepad, poll its state for commands
+            if let Some(id) = active_gamepad {
+                let gamepad = gilrs.gamepad(id);
                 let motor_scale = settings.motor_speed.load(Ordering::Relaxed) as f32 / 100.0;
                 let servo_sens = settings.servo_sensitivity.load(Ordering::Relaxed) as f32 / 100.0;
                 let viewport_turn = settings.viewport_turn.load(Ordering::Relaxed);

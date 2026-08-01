@@ -1,7 +1,7 @@
 pub mod controller;
 pub mod websocket;
 
-use std::sync::atomic::{AtomicI32, AtomicU32, AtomicBool, Ordering};
+use std::sync::atomic::{AtomicI32, AtomicIsize, AtomicU32, AtomicBool, Ordering};
 use tokio::sync::Mutex;
 use websocket::{connect_to_pi, disconnect_from_pi, send_pi_command, WsState};
 
@@ -20,6 +20,9 @@ pub struct ControlSettings {
     pub ly_deadzone: AtomicI32,
     pub rx_deadzone: AtomicI32,
     pub ry_deadzone: AtomicI32,
+    
+    // -1 = Auto, -2 = Disconnect All, >= 0 = Force Gamepad ID
+    pub force_active_gamepad: AtomicIsize,
 }
 
 #[tauri::command]
@@ -55,6 +58,11 @@ fn update_calibration(
     settings.ry_deadzone.store(ry_d, Ordering::Relaxed);
 }
 
+#[tauri::command]
+fn set_active_gamepad(id: isize, settings: tauri::State<ControlSettings>) {
+    settings.force_active_gamepad.store(id, Ordering::Relaxed);
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -74,13 +82,15 @@ pub fn run() {
             ly_deadzone: AtomicI32::new(200),
             rx_deadzone: AtomicI32::new(200),
             ry_deadzone: AtomicI32::new(200),
+            force_active_gamepad: AtomicIsize::new(-1),
         })
         .invoke_handler(tauri::generate_handler![
             connect_to_pi,
             send_pi_command,
             disconnect_from_pi,
             update_settings,
-            update_calibration
+            update_calibration,
+            set_active_gamepad
         ])
         .setup(|app| {
             let handle = app.handle().clone();
