@@ -20,14 +20,14 @@
   let keyD = $state(false);
   let motorSpeed = $state(100);
   let servoSensitivity = $state(50);
-  let followCamera = $state(false);
+  let viewportTurn = $state(false);
 
   // Sync settings to Rust controller
   $effect(() => {
     invoke('update_settings', { 
       motorSpeed: Number(motorSpeed), 
       servoSensitivity: Number(servoSensitivity),
-      followCamera 
+      viewportTurn 
     }).catch(console.error);
   });
   
@@ -153,7 +153,7 @@
       payload.tilt = tilt;
     }
 
-    if (followCamera) {
+    if (viewportTurn) {
       steering = (servoMode === 'absolute') ? payload.pan : pan;
       payload.steering = steering;
     }
@@ -404,15 +404,18 @@
             <label for="servo-sens">Servo Sensitivity: {servoSensitivity}%</label>
             <input id="servo-sens" type="range" min="0" max="100" bind:value={servoSensitivity} oninput={() => sendKeyboardCommand()} />
           </div>
-          <div class="sensor-row" style="margin-bottom: 0; margin-top: 0.5rem; justify-content: space-between;">
-            <label style="font-size: 0.85rem; color: var(--text-secondary); display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
-              <input type="checkbox" bind:checked={followCamera} onchange={() => sendKeyboardCommand()} />
-              Drive Where You Look
-            </label>
-            <div style="display: flex; align-items: center; gap: 0.5rem;">
-              <span style="font-size: 0.85rem; color: var(--text-secondary);">Camera Mode</span>
-              <button class="mode-toggle" disabled style="opacity: 0.5; cursor: not-allowed;" title="FIXME: Incremental mode disabled due to servo spasms">
+          
+          <div class="modes-collection" style="margin-top: 1rem;">
+            <span style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.5rem; display: block;">Camera Modes</span>
+            <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+              <button class="mode-toggle" class:active={servoMode === 'absolute'} onclick={() => servoMode = 'absolute'}>
                 Absolute
+              </button>
+              <button class="mode-toggle" class:active={servoMode === 'incremental'} disabled style="opacity: 0.5; cursor: not-allowed;" title="FIXME: Spasming issues">
+                Incremental
+              </button>
+              <button class="mode-toggle" class:active={viewportTurn} onclick={() => { viewportTurn = !viewportTurn; sendKeyboardCommand(); }}>
+                Viewport Turn
               </button>
             </div>
           </div>
@@ -695,14 +698,20 @@
   }
 
   .mode-toggle {
-    padding: 0.25rem 0.75rem;
-    font-size: 0.75rem;
-    border-radius: 6px;
     background: rgba(255, 255, 255, 0.1);
     border: 1px solid rgba(255, 255, 255, 0.2);
-    color: var(--text-primary);
+    color: white;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    cursor: pointer;
   }
-  .mode-toggle:hover {
+  .mode-toggle.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #0f172a;
+  }
+  .mode-toggle:hover:not(:disabled) {
     background: rgba(255, 255, 255, 0.2);
   }
 

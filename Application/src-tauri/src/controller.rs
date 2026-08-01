@@ -71,7 +71,7 @@ pub fn start_controller_loop(app_handle: AppHandle) {
                 let settings = app_handle.state::<ControlSettings>();
                 let motor_scale = settings.motor_speed.load(Ordering::Relaxed) as f32 / 100.0;
                 let servo_sens = settings.servo_sensitivity.load(Ordering::Relaxed) as f32 / 100.0;
-                let follow_camera = settings.follow_camera.load(Ordering::Relaxed);
+                let viewport_turn = settings.viewport_turn.load(Ordering::Relaxed);
 
                 let mut throttle = gamepad.value(Axis::LeftStickY);
                 let mut steering = gamepad.value(Axis::LeftStickX);
@@ -112,7 +112,7 @@ pub fn start_controller_loop(app_handle: AppHandle) {
                 tilt = tilt.clamp(-1.0, 1.0);
 
                 // Drive Where You Look override
-                if follow_camera {
+                if viewport_turn {
                     steering = pan;
                 }
 
