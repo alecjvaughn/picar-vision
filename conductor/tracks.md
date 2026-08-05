@@ -35,5 +35,5 @@ This file tracks all major development tracks for the `picar-vision` project. Ea
 
 ---
 
-- [~] **Track: Autonomous Driving & Object Recognition**
+- [x] **Track: Autonomous Driving & Object Recognition**
 *Link: [./tracks/autonomous-driving_20260805/](./tracks/autonomous-driving_20260805/)*
