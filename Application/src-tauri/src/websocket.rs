@@ -132,6 +132,8 @@ pub async fn connect_to_pi(
                                         }
                                     }
                                 }
+                            } else {
+                                json.as_object_mut().unwrap().insert("error".to_string(), serde_json::Value::String("AI Model failed to load (Not Found)".to_string()));
                             }
                             let _ = app.emit("telemetry", json);
                         } else {

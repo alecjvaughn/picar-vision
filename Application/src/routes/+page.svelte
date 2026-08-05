@@ -526,6 +526,11 @@
   <!-- Fullscreen Video -->
   {#if connected}
     <div class="video-wrapper">
+      {#if connectionError}
+        <div class="error-banner">
+          ⚠️ {connectionError}
+        </div>
+      {/if}
       {#if videoBlobUrl}
         <img class="fullscreen-video" src={videoBlobUrl} alt="Live MJPEG stream" />
         <!-- Bounding Boxes Overlay -->
@@ -1481,5 +1486,21 @@
   .gamepad-actions button {
     font-size: 0.8rem;
     padding: 0.4rem 0.75rem;
+  }
+
+  .error-banner {
+    position: absolute;
+    top: 60px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(239, 68, 68, 0.9);
+    color: white;
+    padding: 0.75rem 1.5rem;
+    border-radius: 8px;
+    font-weight: 600;
+    z-index: 50;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5);
+    pointer-events: none;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.5);
   }
 </style>
