@@ -48,7 +48,8 @@ pub async fn connect_to_pi(
                 Message::Text(text) => {
                     if let Ok(mut json) = serde_json::from_str::<Value>(&text) {
                         if json.get("type").and_then(|t| t.as_str()) == Some("telemetry") {
-                            if let Some(session_mutex) = &vision.session {
+                            let session_guard = vision.session.lock().await;
+                            if let Some(session_mutex) = session_guard.as_ref() {
                                 if let Some(frame_val) = json.get("frame") {
                                     if let Some(frame_str) = frame_val.as_str() {
                                         if !frame_str.is_empty() {

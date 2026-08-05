@@ -8,7 +8,7 @@ use tokio::sync::Mutex;
 use base64::{Engine as _, engine::general_purpose::STANDARD};
 
 pub struct VisionState {
-    pub session: Option<Arc<Mutex<Session>>>,
+    pub session: Mutex<Option<Arc<Mutex<Session>>>>,
     pub target_class: Mutex<String>,
     pub autonomous_mode: Mutex<bool>,
 }

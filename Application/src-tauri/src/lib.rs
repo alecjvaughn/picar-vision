@@ -99,15 +99,23 @@ pub fn run() {
             ry_deadzone: AtomicI32::new(200),
             force_active_gamepad: AtomicIsize::new(-1),
         })
+        .manage(Arc::new(VisionState {
+            session: Mutex::new(None),
+            target_class: Mutex::new("person".to_string()),
+            autonomous_mode: Mutex::new(false),
+        }))
         .setup(|app| {
             let resource_dir = app.path().resource_dir().unwrap_or_default();
             let model_path = resource_dir.join("assets").join("yolov8n.onnx");
             
-            app.manage(Arc::new(VisionState {
-                session: init_vision(model_path).ok().map(|s| Arc::new(Mutex::new(s))),
-                target_class: Mutex::new("person".to_string()),
-                autonomous_mode: Mutex::new(false),
-            }));
+            if let Ok(session) = init_vision(model_path) {
+                let state = app.state::<Arc<VisionState>>();
+                let session_arc = Arc::new(Mutex::new(session));
+                // We use block_on because setup is synchronous
+                tauri::async_runtime::block_on(async move {
+                    *state.session.lock().await = Some(session_arc);
+                });
+            }
             
             Ok(())
         })
