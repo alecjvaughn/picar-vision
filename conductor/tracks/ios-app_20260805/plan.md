@@ -31,7 +31,7 @@
     - [x] Verify that existing physical keyboard and Web Gamepad logic is unharmed and continues to work on Desktop browsers.
 
 ### Phase 4: Documentation & Finalization
-- [ ] Task: Create iOS Deployment Guide
-    - [ ] Draft a `docs/ios_deployment.md` file outlining Xcode direct deployment steps.
-- [ ] Task: Documentation Updates
-    - [ ] Log changes in `conductor/in-flight-changes.md`.
+- [x] Task: Create iOS Deployment Guide
+    - [x] Draft a `docs/ios_deployment.md` file outlining Xcode direct deployment steps.
+- [x] Task: Documentation Updates
+    - [x] Log changes in `conductor/in-flight-changes.md`.

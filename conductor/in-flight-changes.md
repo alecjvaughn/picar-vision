@@ -37,3 +37,15 @@ This document tracks changes requested by the user and implemented during active
 ### 1. Gamepad & Hardware (Features)
 - **Gamepad Switcher Modal:** Added a 'Find' controllers UI modal and `gilrs` backend logic to list all detected gamepads, force an active gamepad, or ignore all gamepads without unpairing them at the OS level.
   - Commits: `0678a19`
+
+## Track: `ios-app_20260805`
+
+### 1. Tauri Mobile Initialization (Features)
+- **iOS Scaffolding:** Initialized Tauri iOS targets, locking orientation to strictly landscape mode via `project.yml`.
+  - Commits: `3030b2a`
+
+### 2. UI Refactoring & Touch Interface (Enhancements)
+- **Immersive HUD Layout:** Completely overhauled the `+page.svelte` layout to support full-screen immersive video streaming with translucent, floating UI overlays (`hud-layer`).
+- **Settings Sidebar:** Abstracted connection settings, global opacity, and telemetry toggles into an animated overlay sidebar.
+- **Smart Gamepad Detection:** Added reactive logic to automatically hide virtual joysticks when a physical controller is connected, maximizing screen real estate for the video feed.
+  - Commits: `ee34df7`
