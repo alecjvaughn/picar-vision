@@ -1,12 +1,12 @@
 # Implementation Plan: iOS App Clone & Landscape Interface
 
 ### Phase 1: Tauri Mobile Configuration & Initialization
-- [ ] Task: Initialize Tauri iOS project
-    - [ ] Run `tauri ios init` to scaffold the Xcode project.
-    - [ ] Configure `tauri.conf.json` for mobile targets and identifiers.
-    - [ ] Update `Cargo.toml` if necessary for mobile support.
-- [ ] Task: Lock Application to Landscape Mode
-    - [ ] Configure Xcode project settings or Tauri configuration to strictly enforce landscape orientation on iOS devices.
+- [x] Task: Initialize Tauri iOS project
+    - [x] Run `tauri ios init` to scaffold the Xcode project.
+    - [x] Configure `tauri.conf.json` for mobile targets and identifiers.
+    - [x] Update `Cargo.toml` if necessary for mobile support.
+- [x] Task: Lock Application to Landscape Mode
+    - [x] Configure Xcode project settings or Tauri configuration to strictly enforce landscape orientation on iOS devices.
 
 ### Phase 2: Touch Interface & Layout Refactoring
 - [ ] Task: Implement Settings Sidebar/Modal
