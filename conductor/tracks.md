@@ -30,7 +30,7 @@ This file tracks all major development tracks for the `picar-vision` project. Ea
 
 ---
 
-- [~] **Track: iOS App Clone & Landscape Interface**
+- [x] **Track: iOS App Clone & Landscape Interface**
 *Link: [./tracks/ios-app_20260805/](./tracks/ios-app_20260805/)*
 
 ---
