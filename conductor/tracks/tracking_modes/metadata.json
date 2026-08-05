@@ -1,0 +1,8 @@
+{
+  "track_id": "tracking_modes",
+  "type": "feature",
+  "status": "new",
+  "created_at": "2026-08-05T18:19:00Z",
+  "updated_at": "2026-08-05T18:19:00Z",
+  "description": "Implement additional AI tracking features: lock to object and follow object."
+}

@@ -37,3 +37,8 @@ This file tracks all major development tracks for the `picar-vision` project. Ea
 
 - [x] **Track: Autonomous Driving & Object Recognition**
 *Link: [./tracks/autonomous-driving_20260805/](./tracks/autonomous-driving_20260805/)*
+
+---
+
+- [ ] **Track: Implement additional AI tracking features: lock to object and follow object.**
+*Link: [./tracks/tracking_modes/](./tracks/tracking_modes/)*
