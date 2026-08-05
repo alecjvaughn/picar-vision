@@ -42,3 +42,8 @@ This file tracks all major development tracks for the `picar-vision` project. Ea
 
 - [ ] **Track: Implement additional AI tracking features: lock to object and follow object.**
 *Link: [./tracks/tracking_modes/](./tracks/tracking_modes/)*
+
+---
+
+- [ ] **Track: Implement a native CoreML Tauri plugin for iOS inference.**
+*Link: [./tracks/coreml_integration/](./tracks/coreml_integration/)*
