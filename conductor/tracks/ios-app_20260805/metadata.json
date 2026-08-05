@@ -1,0 +1,8 @@
+{
+  "track_id": "ios-app_20260805",
+  "type": "feature",
+  "status": "new",
+  "created_at": "2026-08-05T13:44:08Z",
+  "updated_at": "2026-08-05T13:44:08Z",
+  "description": "Create an iOS clone of the desktop app with instructions for deploying it to my device and a new landscape friendly orientation and translucent inputs over the live feed"
+}

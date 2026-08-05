@@ -27,3 +27,13 @@ This file tracks all major development tracks for the `picar-vision` project. Ea
 
 - [x] **Track: Gamepad Switcher Modal**
 *Link: [./tracks/gamepad-switcher_20260801/](./tracks/gamepad-switcher_20260801/)*
+
+---
+
+- [ ] **Track: iOS App Clone & Landscape Interface**
+*Link: [./tracks/ios-app_20260805/](./tracks/ios-app_20260805/)*
+
+---
+
+- [ ] **Track: Autonomous Driving & Object Recognition**
+*Link: [./tracks/autonomous-driving_20260805/](./tracks/autonomous-driving_20260805/)*

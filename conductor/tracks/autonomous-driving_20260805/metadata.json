@@ -1,0 +1,8 @@
+{
+  "track_id": "autonomous-driving_20260805",
+  "type": "feature",
+  "status": "new",
+  "created_at": "2026-08-05T13:44:08Z",
+  "updated_at": "2026-08-05T13:44:08Z",
+  "description": "Object recognition and a basic autonomous driving mode"
+}
