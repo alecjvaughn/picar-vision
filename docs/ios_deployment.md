@@ -108,3 +108,17 @@ To ensure Xcode inherits your terminal's environment variables (including Node.j
 ```bash
 sudo ln -s $(which node) /usr/local/bin/node
 ```
+
+### Error: `Unable to launch com.picar.vision because it has an invalid code signature...` (Untrusted Developer)
+
+When running the app on your device for the first time, it installs successfully but crashes on launch with a `Security` or `RequestDenied` error in the terminal, and your phone might say "Untrusted Developer".
+
+Apple requires you to explicitly trust your own development certificate before running apps signed by it.
+
+**The Fix:**
+1. On your iPhone, open the **Settings** app.
+2. Go to **General** > **VPN & Device Management** (or just "Device Management").
+3. Under the **Developer App** section, tap on your Apple ID email (the one you used to sign the app).
+4. Tap **Trust "Your Apple ID"**.
+5. Tap **Trust** again on the popup to confirm.
+6. Now you can launch the app from your home screen or re-run `npm run tauri ios dev`!
