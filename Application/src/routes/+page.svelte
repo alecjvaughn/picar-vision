@@ -15,6 +15,11 @@
   let videoBlobUrl = $state("");
   let isDisconnecting = $state(false);
 
+  // UI States
+  let showSettings = $state(false);
+  let uiOpacity = $state(0.7);
+  let showTelemetry = $state(true);
+
   // Virtual Controls State
   let keyW = $state(false);
   let keyA = $state(false);
@@ -39,6 +44,9 @@
   // Gamepad Switcher State
   let showGamepadModal = $state(false);
   let gamepads = $state<any[]>([]);
+
+  // Auto-hide virtual controls logic
+  let isGamepadConnected = $derived(controllerStatus !== "Not Detected");
 
   let calLxCenter = $state(0);
   let calLyCenter = $state(0);
@@ -487,162 +495,142 @@
   });
 </script>
 
-<main class="dashboard">
-  <header class="glass-panel">
-    <div class="logo-area">
-      <h1>Picar-Vision</h1>
-      <span class="badge" class:active={connected}>
-        {connected ? 'Connected' : 'Disconnected'}
-      </span>
-    </div>
-    
-    <div class="controls-area">
-      <input type="text" bind:value={ipAddress} placeholder="Raspberry Pi IP" disabled={connected} onkeydown={(e) => e.key === 'Enter' && !connected && toggleConnection()} />
-      <button onclick={toggleConnection} class={connected ? 'btn-danger' : 'btn-primary'}>
-        {connected ? 'Disconnect' : 'Connect'}
+
+<main class="dashboard immersive">
+  <!-- Fullscreen Video -->
+  {#if connected}
+    {#if videoBlobUrl}
+      <img class="fullscreen-video" src={videoBlobUrl} alt="Live MJPEG stream" />
+    {:else}
+      <div class="stream-placeholder fullscreen-video center-text">Video Stream Active... Waiting for frames.</div>
+    {/if}
+  {:else}
+    <div class="stream-placeholder fullscreen-video center-text">Waiting for connection...</div>
+  {/if}
+
+  <!-- HUD Overlays -->
+  <div class="hud-layer" style="opacity: {uiOpacity};">
+    <!-- Top Bar -->
+    <header class="hud-top safe-area-left safe-area-right safe-area-top">
+      <div class="logo-area glass-panel">
+        <h1>Picar-Vision</h1>
+        <span class="badge" class:active={connected}>
+          {connected ? 'Connected' : 'Disconnected'}
+        </span>
+      </div>
+      <button class="btn-primary glass-panel icon-btn" onclick={() => showSettings = true}>
+        ⚙️
       </button>
-    </div>
-  </header>
+    </header>
 
-  <div class="content-grid">
-    <!-- Video Feed Panel -->
-    <section class="video-section glass-panel">
-      <div class="panel-header">
-        <h2>Live Feed</h2>
+    <!-- Telemetry -->
+    {#if showTelemetry}
+      <div class="hud-telemetry glass-panel safe-area-left">
+        <div class="sensor-row"><span>Dist:</span><span class="value">{distance}cm</span></div>
+        <div class="sensor-row"><span>Light:</span><span class="value">{light}</span></div>
       </div>
-      <div class="video-container" class:offline={!connected}>
-        {#if connected}
-          {#if videoBlobUrl}
-            <img class="video-stream" src={videoBlobUrl} alt="Live MJPEG stream" />
-          {:else}
-            <div class="stream-placeholder">Video Stream Active... Waiting for frames.</div>
-          {/if}
-        {:else}
-          <div class="stream-placeholder">Waiting for connection...</div>
-        {/if}
-      </div>
+    {/if}
 
-      <!-- Horizontal Stats -->
-      <div class="horizontal-stats">
-        <div class="glass-panel telemetry-card">
-          <h3>Sensors</h3>
-          <div class="sensor-row">
-            <span>Distance</span>
-            <span class="value">{distance} cm</span>
-          </div>
-          <div class="sensor-row">
-            <span>Light</span>
-            <span class="value">{light} / 255</span>
+    <!-- Virtual Controls (Bottom) -->
+    {#if !isGamepadConnected}
+      <div class="hud-controls safe-area-bottom safe-area-left safe-area-right">
+        <!-- Joysticks -->
+        <div class="joystick-wrapper">
+          <div class="joystick-base" onpointerdown={(e) => handlePointerDown(e, 'L')} onpointermove={handlePointerMove} onpointerup={handlePointerUp} onpointercancel={handlePointerUp} style="cursor: crosshair; touch-action: none;">
+            <div class="joystick-stick" style="transform: translate({joystickX * 30}px, {joystickY * 30}px)"></div>
           </div>
         </div>
         
-        <div class="glass-panel telemetry-card">
-          <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); margin-bottom: 1rem; padding-bottom: 0.5rem;">
-            <h3 style="margin: 0; border: none; padding: 0;">Controller Status</h3>
-            <button class="btn-primary" onclick={() => showGamepadModal = true} style="font-size: 0.75rem; padding: 0.25rem 0.5rem;">Find</button>
-          </div>
-          <div class="sensor-row">
-            <span>Gamepad</span>
-            <span class="value" class:disconnected={controllerStatus === "Not Detected"}>{controllerStatus !== "Not Detected" ? controllerType : "Not Detected"}</span>
-          </div>
-          {#if controllerStatus !== "Not Detected"}
-            <div class="sensor-row">
-              <span>Battery</span>
-              <span class="value">{controllerBattery}</span>
-            </div>
-            <div style="margin-top: 1rem; text-align: center;">
-              <button class="btn-primary" onclick={() => showCalibration = true} style="width: 100%; font-size: 0.8rem; padding: 0.5rem;">Calibrate Joystick</button>
-            </div>
-          {/if}
-        </div>
-      </div>
-    </section>
-
-    <!-- Telemetry Sidebar -->
-    <aside class="telemetry-section">
-      <!-- Virtual Controls -->
-      <div class="glass-panel telemetry-card controls-card">
-        <h3>Virtual Controls</h3>
-        
-        <div class="sliders">
-          <div class="slider-group">
-            <label for="motor-speed">Motor Speed: {motorSpeed}%</label>
-            <input id="motor-speed" type="range" min="0" max="100" bind:value={motorSpeed} oninput={() => sendKeyboardCommand()} />
-          </div>
-          <div class="slider-group">
-            <label for="servo-sens">Servo Sensitivity: {servoSensitivity}%</label>
-            <input id="servo-sens" type="range" min="0" max="100" bind:value={servoSensitivity} oninput={() => sendKeyboardCommand()} />
-          </div>
-          
-
+        <div class="center-actions">
+          <button class="v-key btn-snap" class:active={centerCamera} onpointerdown={(e) => {centerCamera = true; sendKeyboardCommand(); e.preventDefault();}}>Snap</button>
         </div>
 
-        <div class="keys-container">
-          <!-- Driving (WASD) -->
-          <div class="key-mode-group">
-            <div class="dpad-grid">
-              <div></div>
-              <div class="v-key" class:active={keyW} onpointerdown={() => simulateKey('w', true)} onpointerup={() => simulateKey('w', false)} onpointerleave={() => simulateKey('w', false)}>W</div>
-              <div></div>
-              <div class="v-key" class:active={keyA} onpointerdown={() => simulateKey('a', true)} onpointerup={() => simulateKey('a', false)} onpointerleave={() => simulateKey('a', false)}>A</div>
-              <div class="v-key" class:active={keyS} onpointerdown={() => simulateKey('s', true)} onpointerup={() => simulateKey('s', false)} onpointerleave={() => simulateKey('s', false)}>S</div>
-              <div class="v-key" class:active={keyD} onpointerdown={() => simulateKey('d', true)} onpointerup={() => simulateKey('d', false)} onpointerleave={() => simulateKey('d', false)}>D</div>
-            </div>
-            
-            <div class="toggle-container">
-              <span class="toggle-label" class:active={!viewportTurn}>Normal<br>Steering</span>
-              <label class="switch">
-                <input type="checkbox" bind:checked={viewportTurn} onchange={() => sendKeyboardCommand()} />
-                <span class="slider"></span>
-              </label>
-              <span class="toggle-label" class:active={viewportTurn}>Follow<br>Camera</span>
-            </div>
-          </div>
-          
-          <!-- Virtual Joysticks Visual -->
-          <div class="joysticks-row">
-            <div class="joystick-wrapper">
-              <span class="stick-label">L (WASD)</span>
-              <div class="joystick-base" onpointerdown={(e) => handlePointerDown(e, 'L')} onpointermove={handlePointerMove} onpointerup={handlePointerUp} onpointercancel={handlePointerUp} style="cursor: crosshair; touch-action: none;">
-                <div class="joystick-stick" style="transform: translate({joystickX * 20}px, {joystickY * 20}px)"></div>
-              </div>
-            </div>
-            <div class="joystick-wrapper">
-              <span class="stick-label">R (Camera)</span>
-              <div class="joystick-base" onpointerdown={(e) => handlePointerDown(e, 'R')} onpointermove={handlePointerMove} onpointerup={handlePointerUp} onpointercancel={handlePointerUp} style="cursor: crosshair; touch-action: none;">
-                <div class="joystick-stick" style="transform: translate({cameraX * 20}px, {cameraY * 20}px)"></div>
-              </div>
-            </div>
-          </div>
-          
-          <!-- Servos (D-Pad & Snap) -->
-          <div class="key-mode-group">
-            <div class="dpad-grid">
-              <div></div>
-              <div class="v-key" class:active={gpDpadUp || arrUp} onpointerdown={() => setVArrow('Up', true)} onpointerup={() => setVArrow('Up', false)} onpointerleave={() => {if (arrUp) setVArrow('Up', false)}}>▲</div>
-              <div class="v-key btn-snap" class:active={gpBtnSnap || centerCamera} onpointerdown={() => {centerCamera = true; sendKeyboardCommand();}}>R1/SP</div>
-              <div class="v-key" class:active={gpDpadLeft || arrLeft} onpointerdown={() => setVArrow('Left', true)} onpointerup={() => setVArrow('Left', false)} onpointerleave={() => {if (arrLeft) setVArrow('Left', false)}}>◀</div>
-              <div class="v-key" class:active={gpDpadDown || arrDown} onpointerdown={() => setVArrow('Down', true)} onpointerup={() => setVArrow('Down', false)} onpointerleave={() => {if (arrDown) setVArrow('Down', false)}}>▼</div>
-              <div class="v-key" class:active={gpDpadRight || arrRight} onpointerdown={() => setVArrow('Right', true)} onpointerup={() => setVArrow('Right', false)} onpointerleave={() => {if (arrRight) setVArrow('Right', false)}}>▶</div>
-            </div>
-
-            <div class="toggle-container">
-              <span class="toggle-label" class:active={servoMode === 'absolute'}>Absolute<br>Camera</span>
-              <label class="switch">
-                <input type="checkbox" checked={servoMode === 'incremental'} onchange={(e) => { servoMode = (e.target as HTMLInputElement).checked ? 'incremental' : 'absolute'; sendKeyboardCommand(); }} disabled title="FIXME: Spasming issues" />
-                <span class="slider"></span>
-              </label>
-              <span class="toggle-label" class:active={servoMode === 'incremental'}>Incremental<br>Camera</span>
-            </div>
+        <div class="joystick-wrapper">
+          <div class="joystick-base" onpointerdown={(e) => handlePointerDown(e, 'R')} onpointermove={handlePointerMove} onpointerup={handlePointerUp} onpointercancel={handlePointerUp} style="cursor: crosshair; touch-action: none;">
+            <div class="joystick-stick" style="transform: translate({cameraX * 30}px, {cameraY * 30}px)"></div>
           </div>
         </div>
       </div>
-    </aside>
+    {/if}
   </div>
 </main>
 
+<!-- Settings Sidebar -->
+{#if showSettings}
+<div class="modal-backdrop" onclick={() => showSettings = false}>
+  <div class="settings-sidebar glass-panel safe-area-right safe-area-top safe-area-bottom" onclick={(e) => e.stopPropagation()}>
+    <div class="sidebar-header">
+      <h2>Settings</h2>
+      <button class="btn-danger icon-btn" onclick={() => showSettings = false}>×</button>
+    </div>
+    
+    <div class="settings-content">
+      <div class="settings-group">
+        <h3>Connection</h3>
+        <input type="text" bind:value={ipAddress} placeholder="Raspberry Pi IP" disabled={connected} onkeydown={(e) => e.key === 'Enter' && !connected && toggleConnection()} />
+        <button onclick={toggleConnection} class={connected ? 'btn-danger' : 'btn-primary'} style="width: 100%; margin-top: 0.5rem;">
+          {connected ? 'Disconnect' : 'Connect'}
+        </button>
+      </div>
+
+      <div class="settings-group">
+        <h3>UI Preferences</h3>
+        <label class="slider-group">
+          UI Opacity: {Math.round(uiOpacity * 100)}%
+          <input type="range" min="0.1" max="1" step="0.05" bind:value={uiOpacity} />
+        </label>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 1rem;">
+          <span style="font-size:0.85rem; color:var(--text-secondary)">Show Telemetry</span>
+          <label class="switch">
+            <input type="checkbox" bind:checked={showTelemetry} />
+            <span class="slider"></span>
+          </label>
+        </div>
+      </div>
+
+      <div class="settings-group">
+        <h3>Robot Controls</h3>
+        <label class="slider-group">Motor Speed: {motorSpeed}%
+          <input type="range" min="0" max="100" bind:value={motorSpeed} oninput={() => sendKeyboardCommand()} />
+        </label>
+        <label class="slider-group">Servo Sens: {servoSensitivity}%
+          <input type="range" min="0" max="100" bind:value={servoSensitivity} oninput={() => sendKeyboardCommand()} />
+        </label>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 1rem;">
+          <span style="font-size:0.85rem; color:var(--text-secondary)">Follow Camera</span>
+          <label class="switch">
+            <input type="checkbox" bind:checked={viewportTurn} onchange={() => sendKeyboardCommand()} />
+            <span class="slider"></span>
+          </label>
+        </div>
+      </div>
+
+      <div class="settings-group">
+        <h3>Controller</h3>
+        <div class="sensor-row">
+          <span>Status:</span>
+          <span class="value" class:disconnected={controllerStatus === "Not Detected"}>{controllerStatus !== "Not Detected" ? controllerType : "Not Detected"}</span>
+        </div>
+        {#if controllerStatus !== "Not Detected"}
+          <div class="sensor-row">
+            <span>Battery:</span>
+            <span class="value">{controllerBattery}</span>
+          </div>
+        {/if}
+        <div style="display: flex; gap: 0.5rem; margin-top: 0.5rem;">
+          <button class="btn-primary" onclick={() => showGamepadModal = true} style="flex: 1;">Find</button>
+          {#if controllerStatus !== "Not Detected"}
+            <button class="btn-primary" onclick={() => showCalibration = true} style="flex: 1;">Calibrate</button>
+          {/if}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{/if}
+
 {#if showCalibration}
-<div class="modal-backdrop">
+<div class="modal-backdrop" style="z-index: 2000;">
   <div class="modal-content glass-panel">
     <h2>Joystick Calibration</h2>
     <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1rem;">Values are in thousandths (e.g., 200 = 0.20)</p>
@@ -673,14 +661,14 @@
 {/if}
 
 {#if showGamepadModal}
-<div class="modal-backdrop">
+<div class="modal-backdrop" style="z-index: 2000;">
   <div class="modal-content glass-panel" style="min-width: 500px;">
     <div style="display: flex; justify-content: space-between; align-items: center;">
       <h2>Connected Gamepads</h2>
       <div style="display: flex; align-items: center; gap: 0.75rem;">
         <span style="font-size: 0.9rem; font-weight: bold; color: {activeGamepadId === null ? 'var(--primary-color)' : 'var(--text-secondary)'};">Auto Select</span>
         <label class="switch">
-          <input type="checkbox" checked={activeGamepadId === null} onchange={(e) => toggleAutoSelect((e.target as HTMLInputElement).checked)} />
+          <input type="checkbox" checked={activeGamepadId === null} onchange={(e) => toggleAutoSelect(e.target.checked)} />
           <span class="slider"></span>
         </label>
       </div>
@@ -713,6 +701,181 @@
 {/if}
 
 <style>
+
+  /* IMMERSIVE LAYOUT */
+  .immersive {
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
+    background: #000;
+    padding: 0;
+    display: block;
+  }
+  .fullscreen-video {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    z-index: 1;
+  }
+  .center-text {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-secondary);
+    font-weight: 500;
+  }
+  
+  .hud-layer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 10;
+    pointer-events: none; /* Let touches pass to video if needed */
+    transition: opacity 0.2s ease;
+  }
+  .hud-layer > * {
+    pointer-events: auto;
+  }
+  
+  /* Safe Areas */
+  .safe-area-top { padding-top: env(safe-area-inset-top, 10px); }
+  .safe-area-bottom { padding-bottom: env(safe-area-inset-bottom, 20px); }
+  .safe-area-left { padding-left: env(safe-area-inset-left, 20px); }
+  .safe-area-right { padding-right: env(safe-area-inset-right, 20px); }
+
+  .hud-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding: 1.5rem;
+  }
+  
+  .hud-top .logo-area {
+    padding: 0.5rem 1rem;
+    border-radius: 12px;
+  }
+
+  .icon-btn {
+    width: 44px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    border-radius: 12px;
+    padding: 0;
+  }
+
+  .hud-telemetry {
+    position: absolute;
+    top: 50%;
+    left: 1.5rem;
+    transform: translateY(-50%);
+    padding: 1rem;
+    border-radius: 12px;
+    min-width: 150px;
+  }
+
+  .hud-controls {
+    position: absolute;
+    bottom: 1.5rem;
+    left: 0;
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    padding: 0 3rem;
+    box-sizing: border-box;
+  }
+  
+  /* Settings Sidebar */
+  .settings-sidebar {
+    position: absolute;
+    top: 0;
+    right: 0;
+    height: 100%;
+    width: 350px;
+    max-width: 90vw;
+    background: rgba(15, 23, 42, 0.95);
+    backdrop-filter: blur(20px);
+    border-left: 1px solid rgba(255, 255, 255, 0.1);
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    padding: 1.5rem;
+    box-sizing: border-box;
+    transform: translateX(0);
+    animation: slideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  
+  @keyframes slideIn {
+    from { transform: translateX(100%); }
+    to { transform: translateX(0); }
+  }
+
+  .sidebar-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+  }
+  .sidebar-header h2 { font-size: 1.25rem; color: #fff; margin: 0; }
+  
+  .settings-content {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    overflow-y: auto;
+    flex: 1;
+    padding-right: 0.5rem;
+  }
+  
+  .settings-group {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 12px;
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  
+  .settings-group h3 {
+    font-size: 0.9rem;
+    color: var(--accent-primary);
+    margin: 0 0 0.25rem 0;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  /* Make Joysticks Bigger */
+  .joystick-base {
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.1);
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    backdrop-filter: blur(10px);
+  }
+  .joystick-stick {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background: var(--accent-primary);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4), inset 0 2px 4px rgba(255, 255, 255, 0.4);
+    transition: transform 0.05s ease-out;
+  }
+
   .dashboard {
     padding: 1.5rem;
     height: 100vh;
