@@ -69,7 +69,23 @@ Alternatively, just rebuild from Xcode after ensuring your frontend is built (`n
 
 ## Troubleshooting
 
-### "Command PhaseScriptExecution failed with a nonzero exit code"
+### Error: `Command PhaseScriptExecution failed with a nonzero exit code` or `Operation not permitted (os error 1)`
+
+If your build fails during the `PhaseScriptExecution Build Rust Code` step (specifically with `error: failed to determine package fingerprint for build script`), it is likely due to **Xcode 15's new User Script Sandboxing** feature.
+
+When this is enabled, Xcode restricts custom build scripts (like Tauri's Rust compilation step) from accessing files outside of explicit input/output bounds. Since `cargo` needs to read the entire project directory and `project.pbxproj`, it gets blocked by `sandbox-exec`.
+
+**The Fix:**
+1. Open the project in Xcode (`open -a Xcode gen/apple/tauri-app.xcodeproj`)
+2. Click on the `tauri-app` project file in the Project Navigator (left sidebar).
+3. Select the `tauri-app_iOS` target.
+4. Go to the **Build Settings** tab.
+5. Search for `ENABLE_USER_SCRIPT_SANDBOXING` (or "User Script Sandboxing").
+6. Change the value from `Yes` to `No`.
+7. Clean your build folder (⇧⌘K) and run the build again.
+
+### Error: `No profiles for 'com.picar.vision' were found`
+
 When building the Tauri iOS app via Xcode, you may encounter a `PhaseScriptExecution` error during the build phase. This happens because Xcode's GUI application does not inherit the same `PATH` variables as your terminal, meaning it often cannot find `node`, `npm`, or `cargo` if they were installed via tools like `nvm` or `rustup`.
 
 **The Solution:**
