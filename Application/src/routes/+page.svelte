@@ -14,6 +14,7 @@
   let controllerType = $state("Standard");
   let videoBlobUrl = $state("");
   let isDisconnecting = $state(false);
+  let connectionError = $state<string | null>(null);
 
   // UI States
   let showSettings = $state(false);
@@ -285,11 +286,13 @@
     if (!connected) {
       try {
         isDisconnecting = false;
+        connectionError = null;
         await invoke('connect_to_pi', { ip: ipAddress });
         connected = true;
       } catch (e) {
-        console.error(e);
-        alert(e);
+        console.error("Failed to connect:", e);
+        connectionError = typeof e === 'string' ? e : JSON.stringify(e);
+        connected = false;
       }
     } else {
       await disconnect();
@@ -609,6 +612,11 @@
         <button onclick={toggleConnection} class={connected ? 'btn-danger' : 'btn-primary'} style="width: 100%; margin-top: 0.5rem;">
           {connected ? 'Disconnect' : 'Connect'}
         </button>
+        {#if connectionError}
+          <div style="color: red; margin-top: 0.5rem; font-size: 0.9em; text-align: center;">
+            {connectionError}
+          </div>
+        {/if}
       </div>
 
       <div class="settings-group">
