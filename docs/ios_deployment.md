@@ -66,3 +66,29 @@ If you change the Svelte frontend code (`Application/src/routes/+page.svelte` or
 npm run tauri ios dev
 ```
 Alternatively, just rebuild from Xcode after ensuring your frontend is built (`npm run build`).
+
+## Troubleshooting
+
+### "Command PhaseScriptExecution failed with a nonzero exit code"
+When building the Tauri iOS app via Xcode, you may encounter a `PhaseScriptExecution` error during the build phase. This happens because Xcode's GUI application does not inherit the same `PATH` variables as your terminal, meaning it often cannot find `node`, `npm`, or `cargo` if they were installed via tools like `nvm` or `rustup`.
+
+**The Solution:**
+To ensure Xcode inherits your terminal's environment variables (including Node.js and Rust binaries), you should always open the project using the terminal rather than clicking the `.xcodeproj` file in Finder or opening it from the Xcode GUI.
+
+1. Close Xcode.
+2. Open your terminal application (e.g., iTerm2 or Terminal).
+3. Navigate to the project root:
+   ```bash
+   cd ~/Developer/picar-vision/Application
+   ```
+4. Open the Xcode workspace using the `open -a` command:
+   ```bash
+   open -a Xcode src-tauri/gen/apple/tauri-app.xcodeproj
+   ```
+5. Once Xcode opens, clean the build folder by going to **Product > Clean Build Folder** (or press `Cmd+Shift+K`).
+6. Click **Run** again.
+
+*Alternative*: If this still fails, you can symlink `node` into a location Xcode can always see:
+```bash
+sudo ln -s $(which node) /usr/local/bin/node
+```

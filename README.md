@@ -1,4 +1,8 @@
-## Freenove 4WD Smart Car Kit for Raspberry Pi
+## Freenove 4WD Smart Car Kit (Picar-Vision)
+
+> **Note:** This repository has been heavily customized to include a modern microservices architecture, a Rust-based Tauri frontend/backend (Desktop + iOS app), and YOLOv8 Autonomous Driving logic.
+> For instructions on deploying the mobile iOS app or troubleshooting Xcode errors (like `PhaseScriptExecution`), please read the **[iOS Deployment Guide](./docs/ios_deployment.md)**.
+
 
 
 > A 4WD smart car kit for Raspberry Pi.
