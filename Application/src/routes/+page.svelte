@@ -5,7 +5,7 @@
 
   // Core Dashboard State
   let connected = $state(false);
-  let ipAddress = $state("10.0.0.X");
+  let ipAddress = $state("raspi3.local");
   
   let distance = $state("--");
   let light = $state("--");
@@ -287,6 +287,7 @@
       try {
         isDisconnecting = false;
         connectionError = null;
+        localStorage.setItem('picar-ip', ipAddress);
         await invoke('connect_to_pi', { ip: ipAddress });
         connected = true;
       } catch (e) {
@@ -482,6 +483,9 @@
   }
 
   onMount(async () => {
+    const savedIp = localStorage.getItem('picar-ip');
+    if (savedIp) ipAddress = savedIp;
+    
     lastFrameTime = performance.now();
     animationFrameId = requestAnimationFrame(runCameraLoop);
     unlistens.push(await listen('ws-connected', () => { connected = true; isDisconnecting = false; }));
