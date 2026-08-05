@@ -61,63 +61,68 @@ pub async fn connect_to_pi(
                                             // Run inference
                                             let mut cmd_to_send = None;
                                             
-                                            if let Ok(boxes) = process_frame(&mut session, frame_str, 0.4, 0.45) {
-                                                if let Ok(boxes_val) = serde_json::to_value(&boxes) {
-                                                    json.as_object_mut().unwrap().insert("boxes".to_string(), boxes_val);
-                                                }
-                                                
-                                                if is_auto {
-                                                    // Find the target box
-                                                    let mut target_box: Option<crate::vision::BoundingBox> = None;
-                                                    let mut obstacle_box: Option<crate::vision::BoundingBox> = None;
-                                                    
-                                                    for b in &boxes {
-                                                        if b.label == target {
-                                                            if target_box.is_none() || b.confidence > target_box.as_ref().unwrap().confidence {
-                                                                target_box = Some(b.clone());
-                                                            }
-                                                        } else if b.confidence > 0.5 {
-                                                            // Anything else is an obstacle if it's large and central
-                                                            let cx = b.x + (b.width / 2.0);
-                                                            if cx > 200.0 && cx < 440.0 && b.width * b.height > 60000.0 {
-                                                                obstacle_box = Some(b.clone());
-                                                            }
-                                                        }
+                                            match process_frame(&mut session, frame_str, 0.4, 0.45) {
+                                                Ok(boxes) => {
+                                                    if let Ok(boxes_val) = serde_json::to_value(&boxes) {
+                                                        json.as_object_mut().unwrap().insert("boxes".to_string(), boxes_val);
                                                     }
                                                     
-                                                    let mut throttle = 0.0;
-                                                    let mut steering = 0.0;
-                                                    
-                                                    if obstacle_box.is_some() {
-                                                        // Stop if obstacle directly in front
-                                                        throttle = 0.0;
-                                                        steering = 0.0;
-                                                    } else if let Some(tb) = target_box {
-                                                        // Center is x=320 (assuming 640x640 frame)
-                                                        let cx = tb.x + (tb.width / 2.0);
-                                                        let offset = (cx - 320.0) / 320.0; // -1 to 1
+                                                    if is_auto {
+                                                        // Find the target box
+                                                        let mut target_box: Option<crate::vision::BoundingBox> = None;
+                                                        let mut obstacle_box: Option<crate::vision::BoundingBox> = None;
                                                         
-                                                        // Deadzone for steering
-                                                        if offset.abs() > 0.1 {
-                                                            steering = offset;
+                                                        for b in &boxes {
+                                                            if b.label == target {
+                                                                if target_box.is_none() || b.confidence > target_box.as_ref().unwrap().confidence {
+                                                                    target_box = Some(b.clone());
+                                                                }
+                                                            } else if b.confidence > 0.5 {
+                                                                // Anything else is an obstacle if it's large and central
+                                                                let cx = b.x + (b.width / 2.0);
+                                                                if cx > 200.0 && cx < 440.0 && b.width * b.height > 60000.0 {
+                                                                    obstacle_box = Some(b.clone());
+                                                                }
+                                                            }
                                                         }
                                                         
-                                                        let area = tb.width * tb.height;
-                                                        if area < 30000.0 {
-                                                            throttle = 0.6; // move forward
-                                                        } else if area > 80000.0 {
-                                                            throttle = -0.6; // too close, back up
-                                                        } else {
+                                                        let mut throttle = 0.0;
+                                                        let mut steering = 0.0;
+                                                        
+                                                        if obstacle_box.is_some() {
+                                                            // Stop if obstacle directly in front
                                                             throttle = 0.0;
+                                                            steering = 0.0;
+                                                        } else if let Some(tb) = target_box {
+                                                            // Center is x=320 (assuming 640x640 frame)
+                                                            let cx = tb.x + (tb.width / 2.0);
+                                                            let offset = (cx - 320.0) / 320.0; // -1 to 1
+                                                            
+                                                            // Deadzone for steering
+                                                            if offset.abs() > 0.1 {
+                                                                steering = offset;
+                                                            }
+                                                            
+                                                            let area = tb.width * tb.height;
+                                                            if area < 30000.0 {
+                                                                throttle = 0.6; // move forward
+                                                            } else if area > 80000.0 {
+                                                                throttle = -0.6; // too close, back up
+                                                            } else {
+                                                                throttle = 0.0;
+                                                            }
                                                         }
+                                                        
+                                                        let cmd = serde_json::json!({
+                                                            "type": "command",
+                                                            "throttle": throttle,
+                                                            "steering": steering
+                                                        });
+                                                        cmd_to_send = Some(cmd.to_string());
                                                     }
-                                                    
-                                                    let cmd = serde_json::json!({
-                                                        "type": "command",
-                                                        "throttle": throttle,
-                                                        "steering": steering
-                                                    });
-                                                    cmd_to_send = Some(cmd.to_string());
+                                                }
+                                                Err(e) => {
+                                                    json.as_object_mut().unwrap().insert("error".to_string(), serde_json::Value::String(format!("Inference error: {:?}", e)));
                                                 }
                                             }
                                             
