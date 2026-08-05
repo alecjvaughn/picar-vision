@@ -1,9 +1,12 @@
 pub mod controller;
 pub mod websocket;
+pub mod vision;
 
 use std::sync::atomic::{AtomicI32, AtomicIsize, AtomicU32, AtomicBool, Ordering};
 use tokio::sync::Mutex;
+use std::sync::Arc;
 use websocket::{connect_to_pi, disconnect_from_pi, send_pi_command, WsState};
+use vision::{init_vision, VisionState};
 
 pub struct ControlSettings {
     pub motor_speed: AtomicU32,
@@ -63,6 +66,17 @@ fn set_active_gamepad(id: isize, settings: tauri::State<ControlSettings>) {
     settings.force_active_gamepad.store(id, Ordering::Relaxed);
 }
 
+#[tauri::command]
+async fn set_autonomous_mode(
+    enabled: bool,
+    target_class: String,
+    vision_state: tauri::State<'_, Arc<VisionState>>,
+) -> Result<(), String> {
+    *vision_state.autonomous_mode.lock().await = enabled;
+    *vision_state.target_class.lock().await = target_class;
+    Ok(())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -84,13 +98,19 @@ pub fn run() {
             ry_deadzone: AtomicI32::new(200),
             force_active_gamepad: AtomicIsize::new(-1),
         })
+        .manage(Arc::new(VisionState {
+            session: init_vision().ok().map(|s| Arc::new(Mutex::new(s))),
+            target_class: Mutex::new("person".to_string()),
+            autonomous_mode: Mutex::new(false),
+        }))
         .invoke_handler(tauri::generate_handler![
             connect_to_pi,
             send_pi_command,
             disconnect_from_pi,
             update_settings,
             update_calibration,
-            set_active_gamepad
+            set_active_gamepad,
+            set_autonomous_mode
         ])
         .setup(|app| {
             // let handle = app.handle().clone();

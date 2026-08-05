@@ -20,6 +20,16 @@
   let uiOpacity = $state(0.7);
   let showTelemetry = $state(true);
 
+  // Autonomous Mode State
+  let isAutonomous = $state(false);
+  let targetClass = $state('person');
+  let boundingBoxes = $state<any[]>([]);
+
+  // Sync autonomous state to Rust
+  $effect(() => {
+    invoke('set_autonomous_mode', { enabled: isAutonomous, targetClass: targetClass }).catch(console.error);
+  });
+
   // Virtual Controls State
   let keyW = $state(false);
   let keyA = $state(false);
@@ -158,9 +168,14 @@
     sendKeyboardCommand();
   }
 
-  async function sendKeyboardCommand(includeCamera = false) {
+  async function sendKeyboardCommand(includeCamera = false, isManualInput = false) {
     // Only send commands if connected, to avoid errors
     if (!connected) return;
+    
+    // Disable autonomous mode if a manual steering/throttle command is sent
+    if (isManualInput && isAutonomous) {
+      isAutonomous = false;
+    }
     
     const scale = Number(motorSpeed) / 100.0;
     // Map to standard axes: throttle is positive up, steering is positive right
@@ -240,7 +255,7 @@
       centerCamera = true;
     }
     
-    if (changed) sendKeyboardCommand();
+    if (changed) sendKeyboardCommand(false, true);
   }
 
   function handleKeyup(e: KeyboardEvent) {
@@ -319,7 +334,9 @@
   }
 
   function pollWebGamepad() {
-    const pads = navigator.getGamepads ? Array.from(navigator.getGamepads()).filter(p => p !== null && p.connected) : [];
+    const pads = navigator.getGamepads 
+      ? (Array.from(navigator.getGamepads()).filter(p => p !== null && p.connected) as Gamepad[]) 
+      : [];
     
     // Smart Auto-Select: switch to whatever gamepad has activity
     if (activeGamepadId === null) {
@@ -414,7 +431,7 @@
       r1 !== lastWebGamepadState.r1;
 
     if (changed) {
-      sendKeyboardCommand(true);
+      sendKeyboardCommand(true, true);
       lastWebGamepadState = { lx, ly, rx, ry, up, down, left, right, r1 };
     }
   }
@@ -471,6 +488,12 @@
       if (event.payload.frame) {
         videoBlobUrl = "data:image/jpeg;base64," + event.payload.frame;
       }
+      
+      if (event.payload.boxes) {
+        boundingBoxes = event.payload.boxes;
+      } else {
+        boundingBoxes = [];
+      }
     }));
     
     // Listen for Gamepad inputs from Rust for the UI
@@ -499,11 +522,30 @@
 <main class="dashboard immersive">
   <!-- Fullscreen Video -->
   {#if connected}
-    {#if videoBlobUrl}
-      <img class="fullscreen-video" src={videoBlobUrl} alt="Live MJPEG stream" />
-    {:else}
-      <div class="stream-placeholder fullscreen-video center-text">Video Stream Active... Waiting for frames.</div>
-    {/if}
+    <div class="video-wrapper">
+      {#if videoBlobUrl}
+        <img class="fullscreen-video" src={videoBlobUrl} alt="Live MJPEG stream" />
+        <!-- Bounding Boxes Overlay -->
+        {#each boundingBoxes as box}
+          <div 
+            class="bounding-box" 
+            style="
+              left: {(box.x / 640) * 100}%; 
+              top: {(box.y / 480) * 100}%; 
+              width: {(box.width / 640) * 100}%; 
+              height: {(box.height / 480) * 100}%;
+              border-color: {box.label === targetClass ? '#10b981' : '#ef4444'};
+            "
+          >
+            <div class="box-label" style="background-color: {box.label === targetClass ? '#10b981' : '#ef4444'};">
+              {box.label} {Math.round(box.confidence * 100)}%
+            </div>
+          </div>
+        {/each}
+      {:else}
+        <div class="stream-placeholder fullscreen-video center-text">Video Stream Active... Waiting for frames.</div>
+      {/if}
+    </div>
   {:else}
     <div class="stream-placeholder fullscreen-video center-text">Waiting for connection...</div>
   {/if}
@@ -606,6 +648,29 @@
       </div>
 
       <div class="settings-group">
+        <h3>Autonomous Mode</h3>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+          <span style="font-size:0.85rem; color:var(--text-secondary)">Enable AI</span>
+          <label class="switch">
+            <input type="checkbox" bind:checked={isAutonomous} />
+            <span class="slider"></span>
+          </label>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+          <label style="font-size:0.85rem; color:var(--text-secondary)">Target Class</label>
+          <select bind:value={targetClass} class="styled-select">
+            <option value="person">Person</option>
+            <option value="car">Car</option>
+            <option value="dog">Dog</option>
+            <option value="cat">Cat</option>
+            <option value="sports ball">Sports Ball</option>
+            <option value="bottle">Bottle</option>
+            <option value="chair">Chair</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="settings-group">
         <h3>Controller</h3>
         <div class="sensor-row">
           <span>Status:</span>
@@ -668,7 +733,7 @@
       <div style="display: flex; align-items: center; gap: 0.75rem;">
         <span style="font-size: 0.9rem; font-weight: bold; color: {activeGamepadId === null ? 'var(--primary-color)' : 'var(--text-secondary)'};">Auto Select</span>
         <label class="switch">
-          <input type="checkbox" checked={activeGamepadId === null} onchange={(e) => toggleAutoSelect(e.target.checked)} />
+          <input type="checkbox" checked={activeGamepadId === null} onchange={(e) => toggleAutoSelect((e.target as HTMLInputElement).checked)} />
           <span class="slider"></span>
         </label>
       </div>
@@ -721,6 +786,42 @@
     object-fit: cover;
     z-index: 1;
   }
+  
+  .video-wrapper {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
+  }
+  
+  .bounding-box {
+    position: absolute;
+    border: 3px solid #10b981;
+    z-index: 2;
+    pointer-events: none;
+    box-sizing: border-box;
+    box-shadow: 0 0 10px rgba(0,0,0,0.5);
+  }
+  
+  .box-label {
+    position: absolute;
+    top: -24px;
+    left: -3px;
+    background-color: #10b981;
+    color: white;
+    font-size: 0.75rem;
+    font-weight: bold;
+    padding: 2px 6px;
+    border-radius: 4px 4px 0 0;
+    white-space: nowrap;
+    text-transform: capitalize;
+  }
+  
   .center-text {
     display: flex;
     align-items: center;
@@ -1294,6 +1395,21 @@
     padding: 0.25rem;
     border-radius: 4px;
     text-align: right;
+  }
+  
+  .styled-select {
+    background: rgba(255,255,255,0.1);
+    border: 1px solid rgba(255,255,255,0.2);
+    color: white;
+    padding: 0.5rem;
+    border-radius: 6px;
+    width: 100%;
+    font-size: 0.9rem;
+    outline: none;
+  }
+  .styled-select option {
+    background: #1e293b;
+    color: white;
   }
 
   .modal-actions {
