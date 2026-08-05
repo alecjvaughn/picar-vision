@@ -355,13 +355,24 @@
     let activeIdStr = activeGamepadId === null ? (autoSelectedPadId || (pads[0] ? pads[0].id : null)) : activeGamepadId;
 
     if (showGamepadModal) {
-      gamepads = pads.map((p) => ({
-        id: p.id,
-        name: p.id.split(' (Vendor')[0],
-        joyconType: p.id.includes("Joy-Con") ? "Virtual" : "Standard",
-        battery: "OS Managed",
-        active: activeIdStr === p.id
-      }));
+      gamepads = pads.map((p) => {
+        let joyconType = "Standard";
+        let n = p.id;
+        if (n.includes("Joy-Con (L)")) joyconType = "Single L";
+        else if (n.includes("Joy-Con (R)")) joyconType = "Single R";
+        else if (n.includes("Extended") || n.includes("Joy-Con")) joyconType = "Dual";
+        
+        let dname = n.split(' (Vendor')[0];
+        if (joyconType === "Dual") dname = "Nintendo Joy-Cons (Merged)";
+
+        return {
+          id: p.id,
+          name: dname,
+          joyconType: joyconType,
+          battery: "OS Managed",
+          active: activeIdStr === p.id
+        };
+      });
     }
 
     const pad = pads.find(p => p.id === activeIdStr);
@@ -371,10 +382,18 @@
     }
 
     // Strip out the ugly Vendor/Product ID string that Chrome appends
-    const cleanName = pad.id.split(' (Vendor')[0];
+    let joyconType = "Standard";
+    let n = pad.id;
+    if (n.includes("Joy-Con (L)")) joyconType = "Single L";
+    else if (n.includes("Joy-Con (R)")) joyconType = "Single R";
+    else if (n.includes("Extended") || n.includes("Joy-Con")) joyconType = "Dual";
+    
+    let cleanName = n.split(' (Vendor')[0];
+    if (joyconType === "Dual") cleanName = "Nintendo Joy-Cons (Merged)";
+
     controllerStatus = cleanName;
     controllerBattery = "OS Managed";
-    controllerType = cleanName;
+    controllerType = joyconType;
 
     const deadzone = 0.1;
     let lx = Math.abs(pad.axes[0]) < deadzone ? 0 : pad.axes[0];
@@ -464,20 +483,6 @@
     animationFrameId = requestAnimationFrame(runCameraLoop);
     unlistens.push(await listen('ws-connected', () => { connected = true; isDisconnecting = false; }));
     unlistens.push(await listen('ws-disconnected', () => { connected = false; isDisconnecting = false; }));
-    unlistens.push(await listen('controller-status', (event: any) => {
-      if (event.payload.connected) {
-        controllerStatus = event.payload.name || "Connected";
-        controllerBattery = event.payload.battery || "Unknown";
-        controllerType = event.payload.joyconType || "Standard";
-      } else {
-        controllerStatus = "Not Detected";
-        controllerBattery = "Unknown";
-        controllerType = "Standard";
-      }
-    }));
-    unlistens.push(await listen('gamepads-list', (event: any) => {
-      gamepads = event.payload;
-    }));
     unlistens.push(await listen('telemetry', (event: any) => {
       if (isDisconnecting) return;
       connected = true; // Recover connection state if UI hot-reloads
@@ -494,15 +499,6 @@
       } else {
         boundingBoxes = [];
       }
-    }));
-    
-    // Listen for Gamepad inputs from Rust for the UI
-    unlistens.push(await listen('gamepad-input', (event: any) => {
-      if (event.payload.button === 'DpadUp') gpDpadUp = event.payload.pressed;
-      if (event.payload.button === 'DpadDown') gpDpadDown = event.payload.pressed;
-      if (event.payload.button === 'DpadLeft') gpDpadLeft = event.payload.pressed;
-      if (event.payload.button === 'DpadRight') gpDpadRight = event.payload.pressed;
-      if (event.payload.button === 'RightTrigger2') gpBtnSnap = event.payload.pressed; // R1
     }));
     
     // Setup keyboard listeners
