@@ -5,8 +5,8 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-User=pi
-WorkingDirectory=/home/pi/picar-vision/Code/Server
+User=alecj
+WorkingDirectory=/home/alecj/Developer/picar-vision/Code/Server
 # Ensure this points to the python environment where dependencies are installed
 ExecStart=/usr/bin/python3 gateway.py
 Restart=always
