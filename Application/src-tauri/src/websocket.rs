@@ -122,6 +122,7 @@ pub async fn connect_to_pi(
                                                     }
                                                 }
                                                 Err(e) => {
+                                                    eprintln!("Inference error: {:?}", e);
                                                     json.as_object_mut().unwrap().insert("error".to_string(), serde_json::Value::String(format!("Inference error: {:?}", e)));
                                                 }
                                             }
@@ -133,6 +134,7 @@ pub async fn connect_to_pi(
                                     }
                                 }
                             } else {
+                                eprintln!("AI Model not loaded or failed to initialize!");
                                 json.as_object_mut().unwrap().insert("error".to_string(), serde_json::Value::String("AI Model failed to load (Not Found)".to_string()));
                             }
                             let _ = app.emit("telemetry", json);

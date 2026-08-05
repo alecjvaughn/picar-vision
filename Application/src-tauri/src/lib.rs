@@ -108,13 +108,18 @@ pub fn run() {
             let resource_dir = app.path().resource_dir().unwrap_or_default();
             let model_path = resource_dir.join("assets").join("yolov8n.onnx");
             
-            if let Ok(session) = init_vision(model_path) {
-                let state = app.state::<Arc<VisionState>>();
-                let session_arc = Arc::new(Mutex::new(session));
-                // We use block_on because setup is synchronous
-                tauri::async_runtime::block_on(async move {
-                    *state.session.lock().await = Some(session_arc);
-                });
+            match init_vision(model_path.clone()) {
+                Ok(session) => {
+                    let state = app.state::<Arc<VisionState>>();
+                    let session_arc = Arc::new(Mutex::new(session));
+                    // We use block_on because setup is synchronous
+                    tauri::async_runtime::block_on(async move {
+                        *state.session.lock().await = Some(session_arc);
+                    });
+                }
+                Err(e) => {
+                    eprintln!("Failed to initialize YOLOv8 from path {:?}: {:?}", model_path, e);
+                }
             }
             
             Ok(())
