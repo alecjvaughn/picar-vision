@@ -1,0 +1,19 @@
+[Unit]
+Description=PiCar Vision Gateway (WebSocket Server)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi/picar-vision/Code/Server
+# Ensure this points to the python environment where dependencies are installed
+ExecStart=/usr/bin/python3 gateway.py
+Restart=always
+RestartSec=5
+StandardOutput=syslog
+StandardError=syslog
+SyslogIdentifier=picar-gateway
+
+[Install]
+WantedBy=multi-user.target
