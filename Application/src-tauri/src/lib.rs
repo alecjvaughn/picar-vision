@@ -7,6 +7,7 @@ use tokio::sync::Mutex;
 use std::sync::Arc;
 use websocket::{connect_to_pi, disconnect_from_pi, send_pi_command, WsState};
 use vision::{init_vision, VisionState};
+use tauri::Manager;
 
 pub struct ControlSettings {
     pub motor_speed: AtomicU32,
@@ -98,11 +99,18 @@ pub fn run() {
             ry_deadzone: AtomicI32::new(200),
             force_active_gamepad: AtomicIsize::new(-1),
         })
-        .manage(Arc::new(VisionState {
-            session: init_vision().ok().map(|s| Arc::new(Mutex::new(s))),
-            target_class: Mutex::new("person".to_string()),
-            autonomous_mode: Mutex::new(false),
-        }))
+        .setup(|app| {
+            let resource_dir = app.path().resource_dir().unwrap_or_default();
+            let model_path = resource_dir.join("assets").join("yolov8n.onnx");
+            
+            app.manage(Arc::new(VisionState {
+                session: init_vision(model_path).ok().map(|s| Arc::new(Mutex::new(s))),
+                target_class: Mutex::new("person".to_string()),
+                autonomous_mode: Mutex::new(false),
+            }));
+            
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             connect_to_pi,
             send_pi_command,

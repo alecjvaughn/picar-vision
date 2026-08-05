@@ -13,13 +13,13 @@ pub struct VisionState {
     pub autonomous_mode: Mutex<bool>,
 }
 
-pub fn init_vision() -> Result<Session, Box<dyn std::error::Error>> {
+pub fn init_vision(model_path: std::path::PathBuf) -> Result<Session, Box<dyn std::error::Error>> {
     let _ = ort::init().with_name("YOLOv8").commit();
 
     let session = Session::builder()?
         .with_optimization_level(GraphOptimizationLevel::Level3)?
         .with_intra_threads(4)?
-        .commit_from_file("assets/yolov8n.onnx")?;
+        .commit_from_file(model_path)?;
 
     Ok(session)
 }
