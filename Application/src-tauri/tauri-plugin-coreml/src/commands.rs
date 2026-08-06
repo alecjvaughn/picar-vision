@@ -5,9 +5,9 @@ use crate::Result;
 use crate::CoremlExt;
 
 #[command]
-pub(crate) async fn ping<R: Runtime>(
+pub(crate) async fn run_inference<R: Runtime>(
     app: AppHandle<R>,
-    payload: PingRequest,
-) -> Result<PingResponse> {
-    app.coreml().ping(payload)
+    payload: InferenceRequest,
+) -> Result<InferenceResponse> {
+    app.coreml().run_inference(payload)
 }

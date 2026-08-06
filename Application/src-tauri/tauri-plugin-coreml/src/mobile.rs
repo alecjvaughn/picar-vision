@@ -25,10 +25,10 @@ pub fn init<R: Runtime, C: DeserializeOwned>(
 pub struct Coreml<R: Runtime>(PluginHandle<R>);
 
 impl<R: Runtime> Coreml<R> {
-  pub fn ping(&self, payload: PingRequest) -> crate::Result<PingResponse> {
+  pub fn run_inference(&self, payload: InferenceRequest) -> crate::Result<InferenceResponse> {
     self
       .0
-      .run_mobile_plugin("ping", payload)
+      .run_mobile_plugin("run_inference", payload)
       .map_err(Into::into)
   }
 }

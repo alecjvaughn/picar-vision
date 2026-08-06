@@ -35,7 +35,7 @@ impl<R: Runtime, T: Manager<R>> crate::CoremlExt<R> for T {
 /// Initializes the plugin.
 pub fn init<R: Runtime>() -> TauriPlugin<R> {
   Builder::new("coreml")
-    .invoke_handler(tauri::generate_handler![commands::ping])
+    .invoke_handler(tauri::generate_handler![commands::run_inference])
     .setup(|app, api| {
       #[cfg(mobile)]
       let coreml = mobile::init(app, api)?;
