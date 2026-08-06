@@ -1,9 +1,9 @@
 # Implementation Plan: CoreML Native iOS Integration
 
 ## Phase 1: Model Conversion
-- [ ] Task: Set up a Python environment with `ultralytics` and `coremltools`.
-- [ ] Task: Export the YOLOv8 Nano model to CoreML format (`yolov8n.mlpackage`).
-- [ ] Task: Integrate the `.mlpackage` into the Tauri iOS Xcode project bundle.
+- [x] Task: Set up a Python environment with `ultralytics` and `coremltools`.
+- [x] Task: Export the YOLOv8 Nano model to CoreML format (`yolov8n.mlpackage`).
+- [x] Task: Integrate the `.mlpackage` into the Tauri iOS Xcode project bundle.
 
 ## Phase 2: Tauri Plugin Scaffolding
 - [ ] Task: Generate a new Tauri v2 plugin (e.g., `tauri-plugin-coreml`) using the Tauri CLI.
