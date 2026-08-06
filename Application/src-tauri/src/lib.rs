@@ -80,7 +80,13 @@ async fn set_autonomous_mode(
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
+    #[cfg(target_os = "ios")]
+    let builder = tauri::Builder::default().plugin(tauri_plugin_coreml::init());
+    
+    #[cfg(not(target_os = "ios"))]
+    let builder = tauri::Builder::default();
+
+    builder
         .plugin(tauri_plugin_opener::init())
         .manage(WsState {
             tx: Mutex::new(None),
@@ -101,24 +107,28 @@ pub fn run() {
         })
         .manage(Arc::new(VisionState {
             session: Mutex::new(None),
+            init_error: Mutex::new(None),
             target_class: Mutex::new("person".to_string()),
             autonomous_mode: Mutex::new(false),
         }))
         .setup(|app| {
-            let resource_dir = app.path().resource_dir().unwrap_or_default();
-            let model_path = resource_dir.join("assets").join("yolov8n.onnx");
+            let state = app.state::<Arc<VisionState>>();
             
-            match init_vision(model_path.clone()) {
+            match init_vision() {
                 Ok(session) => {
-                    let state = app.state::<Arc<VisionState>>();
                     let session_arc = Arc::new(Mutex::new(session));
-                    // We use block_on because setup is synchronous
                     tauri::async_runtime::block_on(async move {
                         *state.session.lock().await = Some(session_arc);
+                        *state.init_error.lock().await = None;
                     });
+                    println!("Successfully loaded embedded YOLOv8 model.");
                 }
                 Err(e) => {
-                    eprintln!("Failed to initialize YOLOv8 from path {:?}: {:?}", model_path, e);
+                    let err_msg = format!("Init error: {:?}", e);
+                    eprintln!("Failed to initialize embedded YOLOv8: {:?}", e);
+                    tauri::async_runtime::block_on(async {
+                        *state.init_error.lock().await = Some(err_msg);
+                    });
                 }
             }
             

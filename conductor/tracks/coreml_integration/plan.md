@@ -6,9 +6,9 @@
 - [x] Task: Integrate the `.mlpackage` into the Tauri iOS Xcode project bundle.
 
 ## Phase 2: Tauri Plugin Scaffolding
-- [ ] Task: Generate a new Tauri v2 plugin (e.g., `tauri-plugin-coreml`) using the Tauri CLI.
-- [ ] Task: Configure the plugin's `Package.swift` and iOS dependencies.
-- [ ] Task: Register the plugin in `Application/src-tauri/Cargo.toml` and `lib.rs`.
+- [x] Task: Generate a new Tauri v2 plugin (e.g., `tauri-plugin-coreml`) using the Tauri CLI.
+- [x] Task: Configure the plugin's `Package.swift` and iOS dependencies.
+- [x] Task: Register the plugin in `Application/src-tauri/Cargo.toml` and `lib.rs`.
 
 ## Phase 3: Swift Vision Implementation
 - [ ] Task: Write the Swift class implementation to load the `yolov8n` CoreML model using `VNCoreMLModel`.

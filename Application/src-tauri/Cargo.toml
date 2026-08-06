@@ -31,3 +31,4 @@ ort = "2.0.0-rc.13"
 image = "0.25.10"
 ndarray = "0.17.2"
 base64 = "0.23.1"
+tauri-plugin-coreml = { path = "./tauri-plugin-coreml" }
