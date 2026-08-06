@@ -75,10 +75,10 @@ class CoreMLPlugin: Plugin {
                         "height": height
                     ])
                 }
-                invoke.resolve(resultsArray)
+                invoke.resolve(["boxes": resultsArray])
             } else {
                 // Not recognized object format, maybe MLMultiArray
-                invoke.resolve(resultsArray)
+                invoke.resolve(["boxes": resultsArray])
             }
         }
         

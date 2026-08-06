@@ -18,6 +18,7 @@
 
   // UI States
   let showSettings = $state(false);
+  let showDebugWindow = $state(false);
   let uiOpacity = $state(0.7);
   let showTelemetry = $state(true);
 
@@ -89,6 +90,11 @@
   let arrLeft = $state(false);
   let arrRight = $state(false);
   let centerCamera = $state(false);
+  
+  let aiDebugInfo = $state('');
+
+  // Svelte 5 equivalent of stores
+  let settingsOpen = $state(false);
 
   // Camera Absolute State
   let pan = $state(0.0);
@@ -497,14 +503,29 @@
       distance = event.payload.distance?.toFixed(1) || "--";
       light = event.payload.left_light?.toFixed(1) || "--";
       
-      if (event.payload.frame) {
-        videoBlobUrl = "data:image/jpeg;base64," + event.payload.frame;
-      }
-      
       if (event.payload.boxes) {
         boundingBoxes = event.payload.boxes;
       } else {
         boundingBoxes = [];
+      }
+      if (event.payload.error) {
+        connectionError = event.payload.error;
+      } else {
+        connectionError = '';
+      }
+      
+      let debugParts = [];
+      if (event.payload.ai_off) {
+        aiDebugInfo = "";
+      } else {
+        if (event.payload.shape) debugParts.push(`Shape: ${event.payload.shape}`);
+        if (event.payload.max_conf !== undefined) debugParts.push(`MaxConf: ${event.payload.max_conf.toFixed(3)}`);
+        debugParts.push(`Boxes: ${boundingBoxes.length}`);
+        aiDebugInfo = debugParts.join(' | ');
+      }
+      
+      if (event.payload.frame) {
+        videoBlobUrl = "data:image/jpeg;base64," + event.payload.frame;
       }
     }));
     
@@ -526,11 +547,7 @@
   <!-- Fullscreen Video -->
   {#if connected}
     <div class="video-wrapper">
-      {#if connectionError}
-        <div class="error-banner">
-          ⚠️ {connectionError}
-        </div>
-      {/if}
+
       {#if videoBlobUrl}
         <img class="fullscreen-video" src={videoBlobUrl} alt="Live MJPEG stream" />
         <!-- Bounding Boxes Overlay -->
@@ -568,9 +585,14 @@
           {connected ? 'Connected' : 'Disconnected'}
         </span>
       </div>
-      <button class="btn-primary glass-panel icon-btn" onclick={() => showSettings = true}>
-        ⚙️
-      </button>
+      <div class="top-controls">
+        <button class="btn-primary glass-panel icon-btn" onclick={() => showDebugWindow = !showDebugWindow}>
+          🐞
+        </button>
+        <button class="btn-primary glass-panel icon-btn" onclick={() => showSettings = true}>
+          ⚙️
+        </button>
+      </div>
     </header>
 
     <!-- Telemetry -->
@@ -578,6 +600,17 @@
       <div class="hud-telemetry glass-panel safe-area-left">
         <div class="sensor-row"><span>Dist:</span><span class="value">{distance}cm</span></div>
         <div class="sensor-row"><span>Light:</span><span class="value">{light}</span></div>
+      </div>
+    {/if}
+
+    <!-- Debug Window -->
+    {#if showDebugWindow}
+      <div class="hud-debug glass-panel safe-area-right">
+        <h4>AI Debug</h4>
+        {#if connectionError}
+          <pre class="debug-text text-danger">{connectionError}</pre>
+        {/if}
+        <pre class="debug-text">{aiDebugInfo || "Waiting for frames..."}</pre>
       </div>
     {/if}
 
@@ -870,6 +903,11 @@
     padding: 1.5rem;
   }
   
+  .hud-top .top-controls {
+    display: flex;
+    gap: 0.75rem;
+  }
+  
   .hud-top .logo-area {
     padding: 0.5rem 1rem;
     border-radius: 12px;
@@ -894,6 +932,36 @@
     padding: 1rem;
     border-radius: 12px;
     min-width: 150px;
+  }
+
+  .hud-debug {
+    position: absolute;
+    top: 50%;
+    right: 1.5rem;
+    transform: translateY(-50%);
+    padding: 1rem;
+    border-radius: 12px;
+    min-width: 200px;
+  }
+  
+  .hud-debug h4 {
+    margin: 0 0 0.5rem 0;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+  
+  .debug-text {
+    margin: 0 0 0.25rem 0;
+    color: #10b981;
+    font-family: monospace;
+    font-size: 0.85rem;
+    white-space: pre-wrap;
+  }
+  
+  .debug-text.text-danger {
+    color: #ef4444;
   }
 
   .hud-controls {
@@ -1488,19 +1556,5 @@
     padding: 0.4rem 0.75rem;
   }
 
-  .error-banner {
-    position: absolute;
-    top: 60px;
-    left: 50%;
-    transform: translateX(-50%);
-    background: rgba(239, 68, 68, 0.9);
-    color: white;
-    padding: 0.75rem 1.5rem;
-    border-radius: 8px;
-    font-weight: 600;
-    z-index: 50;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5);
-    pointer-events: none;
-    text-shadow: 0 1px 2px rgba(0,0,0,0.5);
-  }
+
 </style>

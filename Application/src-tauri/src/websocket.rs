@@ -97,7 +97,7 @@ pub async fn connect_to_pi(
                                                             }
                                                         }
                                                         
-                                                        for r in results {
+                                                        for r in results.boxes {
                                                             boxes.push(crate::vision::BoundingBox {
                                                                 x: r.x * img_w,
                                                                 y: r.y * img_h,

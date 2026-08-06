@@ -17,4 +17,8 @@ pub struct BoundingBox {
     pub height: f32,
 }
 
-pub type InferenceResponse = Vec<BoundingBox>;
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct InferenceResponse {
+    pub boxes: Vec<BoundingBox>,
+}
