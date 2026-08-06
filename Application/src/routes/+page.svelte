@@ -936,12 +936,14 @@
 
   .hud-debug {
     position: absolute;
-    top: 50%;
+    bottom: 5.5rem;
     right: 1.5rem;
-    transform: translateY(-50%);
     padding: 1rem;
     border-radius: 12px;
     min-width: 200px;
+    max-width: 350px;
+    max-height: 40vh;
+    overflow-y: auto;
   }
   
   .hud-debug h4 {

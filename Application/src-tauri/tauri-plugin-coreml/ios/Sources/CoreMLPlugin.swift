@@ -18,7 +18,11 @@ class CoreMLPlugin: Plugin {
     }
     
     private func setupModel() {
-        guard let modelURL = Bundle.main.url(forResource: "yolov8n", withExtension: "mlmodelc") else {
+        var url = Bundle.main.url(forResource: "yolov8n", withExtension: "mlmodelc", subdirectory: "assets")
+        if url == nil {
+            url = Bundle.main.url(forResource: "yolov8n", withExtension: "mlmodelc")
+        }
+        guard let modelURL = url else {
             print("Could not find yolov8n.mlmodelc in bundle")
             return
         }
