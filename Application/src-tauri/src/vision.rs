@@ -9,17 +9,20 @@ use base64::{Engine as _, engine::general_purpose::STANDARD};
 
 pub struct VisionState {
     pub session: Mutex<Option<Arc<Mutex<Session>>>>,
+    pub init_error: Mutex<Option<String>>,
     pub target_class: Mutex<String>,
     pub autonomous_mode: Mutex<bool>,
 }
 
-pub fn init_vision(model_path: std::path::PathBuf) -> Result<Session, Box<dyn std::error::Error>> {
+const MODEL_BYTES: &[u8] = include_bytes!("../assets/yolov8n.onnx");
+
+pub fn init_vision() -> Result<Session, Box<dyn std::error::Error>> {
     let _ = ort::init().with_name("YOLOv8").commit();
 
     let session = Session::builder()?
         .with_optimization_level(GraphOptimizationLevel::Level3)?
         .with_intra_threads(4)?
-        .commit_from_file(model_path)?;
+        .commit_from_memory(MODEL_BYTES)?;
 
     Ok(session)
 }
@@ -40,7 +43,7 @@ pub fn process_frame(
     base64_jpg: &str,
     conf_threshold: f32,
     iou_threshold: f32,
-) -> Result<Vec<BoundingBox>, Box<dyn std::error::Error>> {
+) -> Result<(Vec<BoundingBox>, String, f32), Box<dyn std::error::Error>> {
     let img_bytes = STANDARD.decode(base64_jpg)?;
     let img = image::load_from_memory(&img_bytes)?;
     let (orig_width, orig_height) = img.dimensions();
@@ -72,6 +75,8 @@ pub fn process_frame(
     let x_scale = orig_width as f32 / 640.0;
     let y_scale = orig_height as f32 / 640.0;
 
+    let mut absolute_max_conf = 0.0;
+
     for i in 0..num_anchors {
         // Data is flattened in [1, 84, 8400]. 
         // For anchor `i`, feature `f` is at index: f * 8400 + i
@@ -88,6 +93,10 @@ pub fn process_frame(
                 max_conf = conf;
                 class_id = c;
             }
+        }
+        
+        if max_conf > absolute_max_conf {
+            absolute_max_conf = max_conf;
         }
 
         if max_conf > conf_threshold {
@@ -124,7 +133,7 @@ pub fn process_frame(
         }
     }
 
-    Ok(nms_boxes)
+    Ok((nms_boxes, format!("{:?}", shape), absolute_max_conf))
 }
 
 fn iou(a: &BoundingBox, b: &BoundingBox) -> f32 {

@@ -49,3 +49,10 @@ This document tracks changes requested by the user and implemented during active
 - **Settings Sidebar:** Abstracted connection settings, global opacity, and telemetry toggles into an animated overlay sidebar.
 - **Smart Gamepad Detection:** Added reactive logic to automatically hide virtual joysticks when a physical controller is connected, maximizing screen real estate for the video feed.
   - Commits: `ee34df7`
+
+## Track: `coreml_integration_20260805`
+
+### 1. Vision Architecture (Features & Architecture)
+- **Baked-in Model Assets:** Refactored `vision.rs` to load the `yolov8n.onnx` model via `include_bytes!` instead of looking it up on disk, fixing 'AI Model not found' errors on MacOS.
+- **Native iOS Inference (CoreML):** Created a bespoke Tauri Plugin (`tauri-plugin-coreml`) built in Swift using `VNCoreMLModel` and `VNCoreMLRequest`.
+- **Conditional Inference Routing:** Refactored `websocket.rs` telemetry loop to conditionally route autonomous driving telemetry inference to `tauri-plugin-coreml` on iOS (offloading to the Apple Neural Engine) and keeping `ort` (ONNX Runtime) exclusively for macOS.

@@ -17,7 +17,7 @@
 - [x] Task: Format the bounding boxes into a JSON-compatible structure and return it to the Rust/JS caller.
 
 ## Phase 4: Integration & Conditional Logic
-- [ ] Task: Update the Svelte frontend and `websocket.rs` telemetry loop to conditionally route inference requests to the CoreML plugin when running on iOS.
-- [ ] Task: Test the integration on the iOS simulator (fallback to CPU/GPU if ANE is unavailable in sim).
-- [ ] Task: Update `conductor/in-flight-changes.md` to document the new architecture.
-- [ ] Task: Commit the plugin and changes via `git`.
+- [x] Task: Update the Svelte frontend and `websocket.rs` telemetry loop to conditionally route inference requests to the CoreML plugin when running on iOS.
+- [x] Task: Test the integration on the iOS simulator (fallback to CPU/GPU if ANE is unavailable in sim).
+- [x] Task: Update `conductor/in-flight-changes.md` to document the new architecture.
+- [x] Task: Commit the plugin and changes via `git`.

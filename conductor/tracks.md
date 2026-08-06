@@ -45,5 +45,5 @@ This file tracks all major development tracks for the `picar-vision` project. Ea
 
 ---
 
-- [ ] **Track: Implement a native CoreML Tauri plugin for iOS inference.**
+- [~] **Track: Implement a native CoreML Tauri plugin for iOS inference.**
 *Link: [./tracks/coreml_integration/](./tracks/coreml_integration/)*
