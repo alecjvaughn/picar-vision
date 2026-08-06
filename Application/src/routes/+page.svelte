@@ -91,6 +91,20 @@
   let arrRight = $state(false);
   let centerCamera = $state(false);
   
+  let ledActive = $state(false);
+  let buzzerActive = $state(false);
+  let ledTimer: number | null = null;
+
+  function triggerLed() {
+    ledActive = true;
+    if (ledTimer) clearTimeout(ledTimer);
+    ledTimer = setTimeout(() => {
+      ledActive = false;
+      sendKeyboardCommand();
+    }, 3000) as unknown as number;
+    sendKeyboardCommand();
+  }
+  
   let aiDebugInfo = $state('');
 
   // Svelte 5 equivalent of stores
@@ -219,6 +233,9 @@
       steering = (servoMode === 'absolute') ? payload.pan : pan;
       payload.steering = steering;
     }
+    
+    payload.led = ledActive ? "rainbow" : "off";
+    payload.buzzer = buzzerActive;
 
     try {
       await invoke('send_pi_command', { command: JSON.stringify(payload) });
@@ -505,9 +522,12 @@
       
       if (event.payload.boxes) {
         boundingBoxes = event.payload.boxes;
-      } else {
+      } else if (!event.payload.boxes && !isAutonomous) {
+        // If AI is off, clear bounding boxes. If AI is on but no boxes in telemetry, 
+        // we might be getting them from json-message broadcast instead!
         boundingBoxes = [];
       }
+      
       if (event.payload.error) {
         connectionError = event.payload.error;
       } else {
@@ -521,8 +541,19 @@
         if (event.payload.shape) debugParts.push(`Shape: ${event.payload.shape}`);
         if (event.payload.max_conf !== undefined) debugParts.push(`MaxConf: ${event.payload.max_conf.toFixed(3)}`);
         debugParts.push(`Boxes: ${boundingBoxes.length}`);
-        aiDebugInfo = debugParts.join(' | ');
       }
+      // Only set aiDebugInfo if we have something to say, or clear it if ai_off
+      if (debugParts.length > 0) aiDebugInfo = debugParts.join(' | ');
+      
+    }));
+
+    unlistens.push(await listen('json-message', (event: any) => {
+      if (event.payload && event.payload.type === 'bounding_boxes') {
+        boundingBoxes = event.payload.boxes || [];
+        // Update debug info for iOS client
+        aiDebugInfo = `[Desktop Stream] Boxes: ${boundingBoxes.length}`;
+      }
+    }));
       
       if (event.payload.frame) {
         videoBlobUrl = "data:image/jpeg;base64," + event.payload.frame;
@@ -624,8 +655,10 @@
           </div>
         </div>
         
-        <div class="center-actions">
+        <div class="center-actions" style="display: flex; gap: 0.5rem; align-items: center;">
+          <button class="v-key btn-led" class:active={ledActive} onpointerdown={(e) => { triggerLed(); e.preventDefault(); }}>LED</button>
           <button class="v-key btn-snap" class:active={centerCamera} onpointerdown={(e) => {centerCamera = true; sendKeyboardCommand(); e.preventDefault();}}>Snap</button>
+          <button class="v-key btn-buzz" class:active={buzzerActive} onpointerdown={(e) => { buzzerActive = true; sendKeyboardCommand(); e.preventDefault(); }} onpointerup={(e) => { buzzerActive = false; sendKeyboardCommand(); e.preventDefault(); }}>Buzz</button>
         </div>
 
         <div class="joystick-wrapper">

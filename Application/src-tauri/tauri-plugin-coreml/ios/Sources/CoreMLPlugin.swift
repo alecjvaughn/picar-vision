@@ -17,13 +17,26 @@ class CoreMLPlugin: Plugin {
         self.setupModel()
     }
     
-    private func setupModel() {
+    private func setupModel(invoke: Invoke? = nil) {
         var url = Bundle.main.url(forResource: "yolov8n", withExtension: "mlmodelc", subdirectory: "assets")
         if url == nil {
             url = Bundle.main.url(forResource: "yolov8n", withExtension: "mlmodelc")
         }
+        if url == nil {
+            url = Bundle.main.url(forResource: "assets/yolov8n", withExtension: "mlmodelc")
+        }
+        if url == nil {
+            url = Bundle.main.url(forResource: "assets/yolov8n.mlmodelc", withExtension: nil)
+        }
+        
         guard let modelURL = url else {
-            print("Could not find yolov8n.mlmodelc in bundle")
+            let fm = FileManager.default
+            let bundleRoot = Bundle.main.bundlePath
+            let contents = try? fm.contentsOfDirectory(atPath: bundleRoot)
+            let assetsContents = try? fm.contentsOfDirectory(atPath: bundleRoot + "/assets")
+            let debugStr = "Model not found. Root: \(contents?.prefix(5).description ?? "none"). Assets: \(assetsContents?.description ?? "none")"
+            print(debugStr)
+            invoke?.reject(debugStr)
             return
         }
         do {
@@ -34,9 +47,12 @@ class CoreMLPlugin: Plugin {
         }
     }
     
-    @objc public func run_inference(_ invoke: Invoke) throws {
+    @objc public func runInference(_ invoke: Invoke) throws {
+        if self.visionModel == nil {
+            self.setupModel(invoke: invoke)
+        }
         guard let visionModel = self.visionModel else {
-            invoke.reject("Model not loaded")
+            // Error is already sent by setupModel(invoke:)
             return
         }
         

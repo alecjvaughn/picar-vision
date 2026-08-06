@@ -36,10 +36,16 @@ print("All parts initialization attempted.")
 current_pan = 0.0
 current_tilt = 0.0
 
+current_led_mode = "off"
+
 async def telemetry_loop(websocket):
     """Continuously send telemetry (sensor data & camera frames) to client."""
+    global current_led_mode
     while True:
         try:
+            # Update continuous tasks
+            if led: led.run(current_led_mode)
+
             # Gather sensors
             distance = ultrasonic.run() if ultrasonic else 0.0
             left_light, right_light = photo.run() if photo else (0.0, 0.0)
@@ -71,9 +77,15 @@ async def telemetry_loop(websocket):
 
 async def command_loop(websocket):
     """Receive commands from the client and route to actuators."""
+    global current_led_mode
     async for message in websocket:
         try:
             data = json.loads(message)
+            if data.get("type") == "bounding_boxes":
+                for client in connected_clients:
+                    if client != websocket:
+                        asyncio.create_task(client.send(message))
+
             if data.get("type") == "command":
                 steering = data.get("steering", 0.0)
                 throttle = data.get("throttle", 0.0)
@@ -85,34 +97,40 @@ async def command_loop(websocket):
                     current_tilt = data["tilt"]
                     
                 buzzer_state = data.get("buzzer", False)
-                led_mode = data.get("led", "off")
+                if "led" in data:
+                    current_led_mode = data.get("led", "off")
                 
                 if motor: motor.run(steering, throttle)
                 if servo: servo.run(current_pan, current_tilt)
                 if buzzer: buzzer.run(buzzer_state)
-                if led: led.run(led_mode)
         except Exception as e:
             print(f"Command error: {e}")
 
+connected_clients = set()
+
 async def handler(websocket):
     print(f"Client connected: {websocket.remote_address}")
+    connected_clients.add(websocket)
     
     # Run both loops concurrently
     telemetry_task = asyncio.create_task(telemetry_loop(websocket))
     command_task = asyncio.create_task(command_loop(websocket))
     
-    done, pending = await asyncio.wait(
-        [telemetry_task, command_task],
-        return_when=asyncio.FIRST_COMPLETED,
-    )
-    for task in pending:
-        task.cancel()
+    try:
+        done, pending = await asyncio.wait(
+            [telemetry_task, command_task],
+            return_when=asyncio.FIRST_COMPLETED,
+        )
+        for task in pending:
+            task.cancel()
+    finally:
+        connected_clients.remove(websocket)
+        print(f"Client disconnected: {websocket.remote_address}")
         
-    print(f"Client disconnected: {websocket.remote_address}")
-    
-    # Safety: Stop motors on disconnect
-    if motor:
-        motor.run(0.0, 0.0)
+        # Safety: Stop motors on disconnect (only if no clients left?)
+        # For safety, let's stop motors if NO clients are connected
+        if len(connected_clients) == 0 and motor:
+            motor.run(0.0, 0.0)
 
 async def main():
     print("Starting WebSocket gateway on ws://0.0.0.0:8765")

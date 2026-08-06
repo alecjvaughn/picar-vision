@@ -182,6 +182,13 @@ pub async fn connect_to_pi(
                                                 if let Some(cmd_str) = cmd_to_send {
                                                     let _ = command_tx.send(cmd_str).await;
                                                 }
+
+                                                // Broadcast bounding boxes to the Pi so it can forward to iOS
+                                                let boxes_msg = serde_json::json!({
+                                                    "type": "bounding_boxes",
+                                                    "boxes": boxes
+                                                });
+                                                let _ = command_tx.send(boxes_msg.to_string()).await;
                                             }
                                         } else {
                                             // Tell frontend AI is off
