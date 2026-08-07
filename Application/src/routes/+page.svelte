@@ -448,7 +448,7 @@
   let lastFrameTime: number;
   let activeGamepadId: string | null = null;
   let autoSelectedPadId: string | null = null;
-  let lastWebGamepadState = { lx: 0, ly: 0, rx: 0, ry: 0, up: false, down: false, left: false, right: false, r1: false, deadman: false, btnNorth: false, btnSouth: false, btnEast: false, btnWest: false, btnPlus: false, btnMinus: false };
+  let lastWebGamepadState = { lx: 0, ly: 0, rx: 0, ry: 0, up: false, down: false, left: false, right: false, r1: false, deadman: false, btnNorth: false, btnSouth: false, btnEast: false, btnWest: false, btnPlus: false, btnMinus: false, btnHome: false, btnCapture: false, aiToggle: false, syncToggle: false };
 
   function setGamepadMode(id: string | null) {
     activeGamepadId = id;
@@ -536,15 +536,25 @@
     let right = pad.buttons[15]?.pressed || false;
     const r1 = pad.buttons[5]?.pressed || false; // R1
 
-    let deadman = pad.buttons[7]?.pressed || pad.buttons[6]?.pressed || false; // L2/R2
+    let deadman = false;
+    let aiToggle = false;
+    let syncToggle = false;
+    let menuSettings = false;
+    let menuAi = false;
+
     let btnPlus = pad.buttons[9]?.pressed || false; // Start/Options/Plus
     let btnMinus = pad.buttons[8]?.pressed || false; // Select/Share/Minus
+    let btnHome = pad.buttons[16]?.pressed || false; // Home
+    let btnCapture = pad.buttons[17]?.pressed || false; // Capture
+    
     let btnNorth = pad.buttons[3]?.pressed || false; // Y/X
     let btnSouth = pad.buttons[0]?.pressed || false; // B/A
     let btnEast = pad.buttons[1]?.pressed || false; // A/B
     let btnWest = pad.buttons[2]?.pressed || false; // X/Y
     let btnL1 = pad.buttons[4]?.pressed || false; // L1 / SL
     let btnR1 = pad.buttons[5]?.pressed || false; // R1 / SR
+    let btnL2 = pad.buttons[6]?.pressed || false; // L2 / L / R (shoulder)
+    let btnR2 = pad.buttons[7]?.pressed || false; // R2 / ZL / ZR (trigger)
 
     // If it's a Single Joy-Con, fix its layout
     const isSingleJoyCon = pad.id.includes("Joy-Con (L)") || pad.id.includes("Joy-Con (R)");
@@ -565,16 +575,31 @@
         left = btnWest;
         right = btnEast;
       }
+
+      aiToggle = btnL2;
+      syncToggle = btnR2;
+      deadman = btnL1 || btnR1; // SL or SR
+      
+      menuSettings = btnPlus || btnMinus;
+      menuAi = btnHome || btnCapture;
+    } else {
+      aiToggle = btnNorth;
+      syncToggle = btnWest;
+      deadman = btnL2 || btnR2; // L2 or R2
+      
+      menuSettings = btnPlus;
+      menuAi = btnMinus;
     }
 
-    // UI Menu Toggles (Plus/Minus)
-    if (btnPlus && !lastWebGamepadState.btnPlus) settingsOpen = !settingsOpen;
-    if (btnMinus && !lastWebGamepadState.btnMinus) aiControlsMinimized = !aiControlsMinimized;
+    // UI Menu Toggles
+    if (menuSettings && !(lastWebGamepadState.btnPlus || lastWebGamepadState.btnMinus)) settingsOpen = !settingsOpen;
+    if (menuAi && !(lastWebGamepadState.btnHome || lastWebGamepadState.btnCapture)) aiControlsMinimized = !aiControlsMinimized;
 
-    // AI & Robot Control Toggles (North/West)
-    if (!btnL1 && !btnR1 && !isSingleJoyCon) {
-        if (btnNorth && !lastWebGamepadState.btnNorth) isAutonomous = !isAutonomous;
-        if (btnWest && !lastWebGamepadState.btnWest) viewportTurn = !viewportTurn;
+    // AI & Robot Control Toggles
+    // Prevent toggling if standard gamepad and L1/R1 are held (avoid conflict with speed combos)
+    if (isSingleJoyCon || (!btnL1 && !btnR1)) {
+        if (aiToggle && !lastWebGamepadState.aiToggle) isAutonomous = !isAutonomous;
+        if (syncToggle && !lastWebGamepadState.syncToggle) viewportTurn = !viewportTurn;
     }
 
     // Speed Adjustments (SL/SR + East/South)
@@ -606,7 +631,7 @@
     gpDpadLeft = left;
     gpDpadRight = right;
     // Only snap if R1 is pressed without E/S combos
-    gpBtnSnap = btnR1 && !btnEast && !btnSouth;
+    gpBtnSnap = btnR1 && !btnEast && !btnSouth && !isSingleJoyCon;
 
     const changed = 
       lx !== lastWebGamepadState.lx || ly !== lastWebGamepadState.ly || 
@@ -616,14 +641,18 @@
       gpBtnSnap !== lastWebGamepadState.r1 || speedChanged ||
       deadman !== lastWebGamepadState.deadman ||
       btnPlus !== lastWebGamepadState.btnPlus || btnMinus !== lastWebGamepadState.btnMinus ||
-      btnNorth !== lastWebGamepadState.btnNorth || btnWest !== lastWebGamepadState.btnWest;
+      btnHome !== lastWebGamepadState.btnHome || btnCapture !== lastWebGamepadState.btnCapture ||
+      btnNorth !== lastWebGamepadState.btnNorth || btnWest !== lastWebGamepadState.btnWest ||
+      aiToggle !== lastWebGamepadState.aiToggle || syncToggle !== lastWebGamepadState.syncToggle;
 
     if (changed) {
       sendKeyboardCommand(true, true);
       lastWebGamepadState = { 
         lx, ly, rx, ry, up, down, left, right, 
         r1: gpBtnSnap, deadman, 
-        btnNorth, btnSouth, btnEast, btnWest, btnPlus, btnMinus 
+        btnNorth, btnSouth, btnEast, btnWest, 
+        btnPlus, btnMinus, btnHome, btnCapture,
+        aiToggle, syncToggle
       };
     }
   }
