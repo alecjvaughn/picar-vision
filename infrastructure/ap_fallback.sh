@@ -12,13 +12,19 @@ sleep 15
     SSID="Picar-Vision-$MAC"
     PASSWORD="picar-vision"
 
+    # Create a virtual AP interface if it doesn't exist
+    if ! iw dev | grep -q "uap0"; then
+        iw dev wlan0 interface add uap0 type __ap
+    fi
+    ip link set uap0 up
+
     # Remove existing hotspot if any
     nmcli connection show "Hotspot" >/dev/null 2>&1 && nmcli connection delete "Hotspot"
     nmcli connection show "$SSID" >/dev/null 2>&1 && nmcli connection delete "$SSID"
     
-    # Create and start the hotspot robustly
-    echo "Starting hotspot with SSID: $SSID"
-    nmcli con add type wifi ifname wlan0 con-name "$SSID" autoconnect no ssid "$SSID"
+    # Create and start the hotspot robustly on uap0
+    echo "Starting hotspot with SSID: $SSID on uap0"
+    nmcli con add type wifi ifname uap0 con-name "$SSID" autoconnect no ssid "$SSID"
     nmcli con modify "$SSID" 802-11-wireless.mode ap 802-11-wireless.band bg ipv4.method shared
     nmcli con modify "$SSID" wifi-sec.key-mgmt wpa-psk
     nmcli con modify "$SSID" wifi-sec.psk "$PASSWORD"
