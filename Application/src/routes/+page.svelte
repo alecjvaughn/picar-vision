@@ -1,7 +1,7 @@
 <script lang="ts">
   import { invoke } from '@tauri-apps/api/core';
   import { listen } from '@tauri-apps/api/event';
-  import { onMount, onDestroy } from 'svelte';
+  import { onMount, onDestroy, untrack } from 'svelte';
 
   // Core Dashboard State
   let connected = $state(false);
@@ -122,7 +122,11 @@
 
   // Sync autonomous state to Rust
   $effect(() => {
-    invoke('set_autonomous_mode', { enabled: isAutonomous, targetClass: targetClass }).catch(console.error);
+    let currentAuto = isAutonomous;
+    untrack(() => {
+      deadmanActive = false; // Reset deadman switch on mode change to prevent runaway
+    });
+    invoke('set_autonomous_mode', { enabled: currentAuto, targetClass: targetClass }).catch(console.error);
     invoke('set_deadman_state', { active: deadmanActive }).catch(console.error);
   });
 
@@ -338,7 +342,9 @@
     
     payload.led = ledActive ? "blink" : "off";
     payload.buzzer = buzzerActive;
-    payload.line_tracking = (!isAutonomous && deadmanActive) ? manualTrackingMode : "off";
+    let distVal = parseFloat(distance);
+    let isPathBlocked = !isNaN(distVal) && distVal <= 25.0;
+    payload.line_tracking = (!isAutonomous && deadmanActive && !isPathBlocked) ? manualTrackingMode : "off";
 
     try {
       await invoke('send_pi_command', { command: JSON.stringify(payload) });
@@ -619,7 +625,14 @@
     }
 
     if (deadman !== lastWebGamepadState.deadman) {
-        deadmanActive = deadman;
+        if (!isAutonomous) {
+            if (deadman) {
+                deadmanActive = !deadmanActive;
+                sendKeyboardCommand();
+            }
+        } else {
+            deadmanActive = deadman;
+        }
     }
 
     if (!isSingleJoyCon) {
@@ -716,6 +729,15 @@
       
       distance = event.payload.distance?.toFixed(1) || "--";
       light = event.payload.left_light?.toFixed(1) || "--";
+      
+      // Auto-abort manual tracking if path blocked
+      if (!isAutonomous && deadmanActive) {
+          let distVal = parseFloat(distance);
+          if (!isNaN(distVal) && distVal <= 25.0) {
+              deadmanActive = false; // Abort mode completely
+              sendKeyboardCommand(); // Immediately send updated payload to stop
+          }
+      }
       
       if (event.payload.boxes) {
         boundingBoxes = event.payload.boxes;
@@ -918,7 +940,7 @@
           </div>
 
           <!-- Play/Pause Deadman -->
-          <button class="icon-btn" style="width: 44px; height: 44px; border-radius: 50%; font-size: 1.2rem; background: {deadmanActive ? 'var(--accent-primary)' : 'rgba(255,255,255,0.1)'}; color: {deadmanActive ? '#000' : '#fff'}; display: flex; align-items: center; justify-content: center; border: 1px solid rgba(255,255,255,0.2); transition: all 0.2s; touch-action: none; user-select: none;" onpointerdown={(e) => { deadmanActive = true; e.preventDefault(); }} onpointerup={(e) => { deadmanActive = false; e.preventDefault(); }} onpointercancel={(e) => { deadmanActive = false; e.preventDefault(); }} oncontextmenu={(e) => e.preventDefault()}>
+          <button class="icon-btn" style="width: 44px; height: 44px; border-radius: 50%; font-size: 1.2rem; background: {deadmanActive ? 'var(--accent-primary)' : 'rgba(255,255,255,0.1)'}; color: {deadmanActive ? '#000' : '#fff'}; display: flex; align-items: center; justify-content: center; border: 1px solid rgba(255,255,255,0.2); transition: all 0.2s; touch-action: none; user-select: none;" onpointerdown={(e) => { if (!isAutonomous) { deadmanActive = !deadmanActive; sendKeyboardCommand(); } else { deadmanActive = true; } e.preventDefault(); }} onpointerup={(e) => { if (isAutonomous) { deadmanActive = false; } e.preventDefault(); }} onpointercancel={(e) => { if (isAutonomous) { deadmanActive = false; } e.preventDefault(); }} oncontextmenu={(e) => e.preventDefault()}>
             {deadmanActive ? '⏸' : '▶'}
           </button>
 
