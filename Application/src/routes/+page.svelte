@@ -127,6 +127,9 @@
       deadmanActive = false; // Reset deadman switch on mode change to prevent runaway
     });
     invoke('set_autonomous_mode', { enabled: currentAuto, targetClass: targetClass }).catch(console.error);
+  });
+
+  $effect(() => {
     invoke('set_deadman_state', { active: deadmanActive }).catch(console.error);
   });
 
