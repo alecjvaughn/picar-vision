@@ -41,13 +41,17 @@ class Led:
             return
         else:
             if state == 1:
-                color = [[255, 0, 0],[0, 0, 0],[0, 255, 0],[0, 0, 0],[0, 0, 255],[0, 0, 0]]
+                import random
                 self.next = time.time()
                 if (self.next - self.start) > wait_ms / 1000.0:
                     self.start = self.next
+                    if self.color_wipe_index % 2 == 0:
+                        c = [random.randint(0, 255), random.randint(0, 255), random.randint(0, 255)]
+                    else:
+                        c = [0, 0, 0]
                     for i in range(self.strip.get_led_count()):
-                        self.strip.set_led_rgb_data(i, color[self.color_wipe_index%4])
-                        self.strip.show()
+                        self.strip.set_led_rgb_data(i, c)
+                    self.strip.show()
                     self.color_wipe_index += 1
             else:
                 self.strip.set_all_led_color(0, 0, 0)

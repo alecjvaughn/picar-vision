@@ -8,6 +8,47 @@ from parts.actuators import FreenoveMotorPart, FreenoveServoPart, FreenoveBuzzer
 from parts.sensors import UltrasonicPart, PhotoresistorPart
 from parts.camera import OpenCVCameraPart
 
+is_paired = False
+
+async def pairing_monitor():
+    global is_paired
+    try:
+        from adc import ADC
+        adc = ADC()
+    except Exception as e:
+        print(f"ADC init error: {e}")
+        # If no ADC, default to paired to avoid bricking
+        is_paired = True 
+        return
+
+    toggles = 0
+    last_state = True # Assume ON
+    last_toggle_time = time.time()
+    
+    while not is_paired:
+        try:
+            power = adc.read_adc(2) * (3 if adc.pcb_version == 1 else 2)
+            current_state = power > 5.0 # Power switch is ON
+            
+            if current_state != last_state:
+                if not current_state: # Flipped OFF
+                    toggles += 1
+                    last_toggle_time = time.time()
+                last_state = current_state
+                
+            if toggles >= 2:
+                print("Pairing successful! Motor switch toggled twice.")
+                is_paired = True
+                break
+                
+            if toggles > 0 and (time.time() - last_toggle_time) > 10.0:
+                toggles = 0
+                
+            await asyncio.sleep(0.1)
+        except Exception as e:
+            print(f"Pairing monitor error: {e}")
+            await asyncio.sleep(1.0)
+
 # Initialize parts
 motor, servo, buzzer, led, ultrasonic, photo, camera = None, None, None, None, None, None, None
 print("Initializing Motor...")
@@ -60,6 +101,7 @@ async def telemetry_loop(websocket):
 
             telemetry_data = {
                 "type": "telemetry",
+                "is_paired": is_paired,
                 "distance": distance,
                 "left_light": left_light,
                 "right_light": right_light,
@@ -87,6 +129,9 @@ async def command_loop(websocket):
                         asyncio.create_task(client.send(message))
 
             if data.get("type") == "command":
+                if not is_paired:
+                    continue # Ignore all commands until pairing is complete
+                
                 steering = data.get("steering", 0.0)
                 throttle = data.get("throttle", 0.0)
                 
@@ -134,6 +179,7 @@ async def handler(websocket):
 
 async def main():
     print("Starting WebSocket gateway on ws://0.0.0.0:8765")
+    asyncio.create_task(pairing_monitor())
     async with websockets.serve(handler, "0.0.0.0", 8765):
         await asyncio.Future()  # run forever
 

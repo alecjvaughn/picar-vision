@@ -16,9 +16,25 @@
   let isDisconnecting = $state(false);
   let connectionError = $state<string | null>(null);
 
+  let expandedSections = $state<Record<string, boolean>>({
+    connection: true,
+    controller: true,
+    uiPreferences: true,
+    aiTracking: true,
+    aiDebug: false
+  });
+  
+  let allExpanded = $derived(Object.values(expandedSections).every(v => v));
+
+  function toggleAllSettings(expand: boolean) {
+    for (let k in expandedSections) {
+      expandedSections[k] = expand;
+    }
+  }
+
   // UI States
   let showSettings = $state(false);
-  let showDebugWindow = $state(false);
+  let showRobotControls = $state(false);
   let uiOpacity = $state(0.7);
   let showTelemetry = $state(true);
 
@@ -26,10 +42,88 @@
   let isAutonomous = $state(false);
   let targetClass = $state('person');
   let boundingBoxes = $state<any[]>([]);
+  let deadmanActive = $state(false);
+
+  let allTrackingTargets = $state([
+    { id: 'none', label: 'FREE ROAM', active: true },
+    { id: 'person', label: 'PERSON', active: true },
+    { id: 'hand', label: 'HAND', active: false },
+    { id: 'sports ball', label: 'BALL', active: true },
+    { id: 'bottle', label: 'BOTTLE', active: true },
+    { id: 'car', label: 'CAR', active: true },
+    { id: 'chair', label: 'CHAIR', active: true },
+    { id: 'dog', label: 'DOG', active: false },
+    { id: 'cat', label: 'CAT', active: false },
+  ]);
+
+  let trackingTargets = $derived(allTrackingTargets.filter(t => t.active));
+
+  let draggedIndex = $state<number | null>(null);
+
+  function handleDragStart(e: DragEvent, index: number) {
+    draggedIndex = index;
+    if (e.dataTransfer) {
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', index.toString());
+    }
+  }
+
+  function handleDragOver(e: DragEvent) {
+    e.preventDefault();
+    if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
+  }
+
+  function handleDrop(e: DragEvent, dropIndex: number) {
+    e.preventDefault();
+    if (draggedIndex === null || draggedIndex === dropIndex) return;
+    const item = allTrackingTargets.splice(draggedIndex, 1)[0];
+    allTrackingTargets.splice(dropIndex, 0, item);
+    draggedIndex = null;
+  }
+
+  let wheelContainer = $state<HTMLElement | null>(null);
+  let scrollTimeout = $state<any>(null);
+
+  function handleWheelScroll() {
+    if (!wheelContainer) return;
+    clearTimeout(scrollTimeout);
+    scrollTimeout = setTimeout(() => {
+      const containerCenter = wheelContainer.getBoundingClientRect().left + (wheelContainer.clientWidth / 2);
+      let closestElement = null;
+      let minDistance = Infinity;
+      Array.from(wheelContainer.children).forEach(child => {
+        if (child.hasAttribute('data-target')) {
+          const childCenter = child.getBoundingClientRect().left + (child.clientWidth / 2);
+          const distance = Math.abs(containerCenter - childCenter);
+          if (distance < minDistance) {
+            minDistance = distance;
+            closestElement = child;
+          }
+        }
+      });
+      if (closestElement) {
+        targetClass = closestElement.getAttribute('data-target');
+      }
+    }, 150);
+  }
+
+  function scrollToTarget(target) {
+     if (!wheelContainer) return;
+     const el = wheelContainer.querySelector(`[data-target="${target}"]`);
+     if (el) el.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+  }
+
+  $effect(() => {
+     if (targetClass && wheelContainer) {
+       // Wait a tick for rendering
+       setTimeout(() => scrollToTarget(targetClass), 10);
+     }
+  });
 
   // Sync autonomous state to Rust
   $effect(() => {
     invoke('set_autonomous_mode', { enabled: isAutonomous, targetClass: targetClass }).catch(console.error);
+    invoke('set_deadman_state', { active: deadmanActive }).catch(console.error);
   });
 
   // Virtual Controls State
@@ -48,6 +142,9 @@
       servoSensitivity: Number(servoSensitivity),
       viewportTurn 
     }).catch(console.error);
+    
+    invoke('set_follow_mode', { active: viewportTurn }).catch(console.error);
+    invoke('set_free_roam', { active: viewportTurn }).catch(console.error);
   });
   
   // Calibration State
@@ -93,23 +190,28 @@
   
   let ledActive = $state(false);
   let buzzerActive = $state(false);
-  let ledTimer: number | null = null;
-
-  function triggerLed() {
-    ledActive = true;
-    if (ledTimer) clearTimeout(ledTimer);
-    ledTimer = setTimeout(() => {
-      ledActive = false;
-      sendKeyboardCommand();
-    }, 3000) as unknown as number;
-    sendKeyboardCommand();
-  }
   
   let aiDebugInfo = $state('');
 
   // Svelte 5 equivalent of stores
   let settingsOpen = $state(false);
-
+  let aiControlsMinimized = $state(false);
+  let swipeStartY = $state(0);
+  
+  function handleSwipeStart(e: PointerEvent) {
+    swipeStartY = e.clientY;
+  }
+  
+  function handleSwipeEnd(e: PointerEvent) {
+    const deltaY = e.clientY - swipeStartY;
+    if (deltaY > 20) {
+      aiControlsMinimized = true; // swipe down
+    } else if (deltaY < -20) {
+      aiControlsMinimized = false; // swipe up
+    } else {
+      aiControlsMinimized = !aiControlsMinimized; // tap to toggle
+    }
+  }
   // Camera Absolute State
   let pan = $state(0.0);
   let tilt = $state(0.0);
@@ -158,7 +260,7 @@
       (e.target as HTMLElement).releasePointerCapture(e.pointerId);
       delete activePointers[e.pointerId];
       if (stick === 'L') { dragX = 0; dragY = 0; }
-      if (stick === 'R') { camDragX = 0; camDragY = 0; }
+      if (stick === 'R') { camDragX = 0; camDragY = 0; centerCamera = true; }
       sendKeyboardCommand();
     }
   }
@@ -234,7 +336,7 @@
       payload.steering = steering;
     }
     
-    payload.led = ledActive ? "rainbow" : "off";
+    payload.led = ledActive ? "blink" : "off";
     payload.buzzer = buzzerActive;
 
     try {
@@ -506,6 +608,13 @@
   }
 
   onMount(async () => {
+    // Hide initial loader gracefully
+    const loader = document.getElementById('initial-loader');
+    if (loader) {
+      loader.style.opacity = '0';
+      setTimeout(() => loader.remove(), 500);
+    }
+
     const savedIp = localStorage.getItem('picar-ip');
     if (savedIp) ipAddress = savedIp;
     
@@ -580,19 +689,19 @@
       {#if videoBlobUrl}
         <img class="fullscreen-video" src={videoBlobUrl} alt="Live MJPEG stream" />
         <!-- Bounding Boxes Overlay -->
-        {#each boundingBoxes as box}
+        {#each boundingBoxes.filter(b => b.label === targetClass) as box}
           <div 
             class="bounding-box" 
             style="
-              left: {(box.x / 640) * 100}%; 
-              top: {(box.y / 480) * 100}%; 
-              width: {(box.width / 640) * 100}%; 
-              height: {(box.height / 480) * 100}%;
-              border-color: {box.label === targetClass ? '#10b981' : '#ef4444'};
+              left: {(box.x / 320) * 100}%; 
+              top: {(box.y / 240) * 100}%; 
+              width: {(box.width / 320) * 100}%; 
+              height: {(box.height / 240) * 100}%;
+              border-color: #10b981;
             "
           >
-            <div class="box-label" style="background-color: {box.label === targetClass ? '#10b981' : '#ef4444'};">
-              {box.label} {Math.round(box.confidence * 100)}%
+            <div class="box-label" style="background-color: #10b981;">
+              {box.label} {Math.round(box.confidence * 100)}% | {distance}
             </div>
           </div>
         {/each}
@@ -614,9 +723,9 @@
           {connected ? 'Connected' : 'Disconnected'}
         </span>
       </div>
-      <div class="top-controls">
-        <button class="btn-primary glass-panel icon-btn" onclick={() => showDebugWindow = !showDebugWindow}>
-          🐞
+      <div class="top-controls" style="align-items: center;">
+        <button class="btn-primary glass-panel icon-btn" onclick={() => showRobotControls = !showRobotControls}>
+          🎮
         </button>
         <button class="btn-primary glass-panel icon-btn" onclick={() => showSettings = true}>
           ⚙️
@@ -624,48 +733,128 @@
       </div>
     </header>
 
-    <!-- Telemetry -->
-    {#if showTelemetry}
-      <div class="hud-telemetry glass-panel safe-area-left">
-        <div class="sensor-row"><span>Dist:</span><span class="value">{distance}cm</span></div>
-        <div class="sensor-row"><span>Light:</span><span class="value">{light}</span></div>
+    <!-- Robot Controls Window -->
+    {#if showRobotControls}
+      <div class="hud-robot-controls glass-panel safe-area-right" style="position: absolute; right: 1rem; top: 5rem; padding: 1rem 1rem 1.25rem 1rem; width: 150px; z-index: 10; display: flex; flex-direction: column; gap: 0.75rem;">
+        <h4 style="margin:0; font-size: 0.85rem; text-align: right; color: var(--accent-primary);">Robot Controls</h4>
+        <label class="slider-group" style="font-size: 0.75rem; margin: 0; display: flex; flex-direction: column; align-items: flex-end; gap: 0.5rem;">
+          <span>Motor: {motorSpeed}%</span>
+          <input type="range" min="0" max="100" bind:value={motorSpeed} oninput={() => sendKeyboardCommand()} style="margin: 0; width: 100%; height: 4px;" />
+        </label>
+        <label class="slider-group" style="font-size: 0.75rem; margin: 0; display: flex; flex-direction: column; align-items: flex-end; gap: 0.5rem;">
+          <span>Servo: {servoSensitivity}%</span>
+          <input type="range" min="0" max="100" bind:value={servoSensitivity} oninput={() => sendKeyboardCommand()} style="margin: 0; width: 100%; height: 4px;" />
+        </label>
       </div>
     {/if}
 
-    <!-- Debug Window -->
-    {#if showDebugWindow}
-      <div class="hud-debug glass-panel safe-area-right">
-        <h4>AI Debug</h4>
-        {#if connectionError}
-          <pre class="debug-text text-danger">{connectionError}</pre>
-        {/if}
-        <pre class="debug-text">{aiDebugInfo || "Waiting for frames..."}</pre>
-      </div>
-    {/if}
-
-    <!-- Virtual Controls (Bottom) -->
-    {#if !isGamepadConnected}
-      <div class="hud-controls safe-area-bottom safe-area-left safe-area-right">
-        <!-- Joysticks -->
+    <!-- Bottom Controls -->
+    <div class="hud-controls safe-area-bottom safe-area-left safe-area-right">
+      <!-- Joysticks (Only if no gamepad) -->
+      {#if !isGamepadConnected}
         <div class="joystick-wrapper">
           <div class="joystick-base" onpointerdown={(e) => handlePointerDown(e, 'L')} onpointermove={handlePointerMove} onpointerup={handlePointerUp} onpointercancel={handlePointerUp} style="cursor: crosshair; touch-action: none;">
             <div class="joystick-stick" style="transform: translate({joystickX * 30}px, {joystickY * 30}px)"></div>
           </div>
         </div>
-        
-        <div class="center-actions" style="display: flex; gap: 0.5rem; align-items: center;">
-          <button class="v-key btn-led" class:active={ledActive} onpointerdown={(e) => { triggerLed(); e.preventDefault(); }}>LED</button>
-          <button class="v-key btn-snap" class:active={centerCamera} onpointerdown={(e) => {centerCamera = true; sendKeyboardCommand(); e.preventDefault();}}>Snap</button>
-          <button class="v-key btn-buzz" class:active={buzzerActive} onpointerdown={(e) => { buzzerActive = true; sendKeyboardCommand(); e.preventDefault(); }} onpointerup={(e) => { buzzerActive = false; sendKeyboardCommand(); e.preventDefault(); }}>Buzz</button>
+      {:else}
+        <div class="joystick-spacer" style="width:120px;height:120px;"></div>
+      {/if}
+      
+      <div class="ai-controls glass-panel" style="display: flex; flex-direction: column; gap: 0.25rem; padding: 1.5rem 1rem 0.5rem 1rem; border-radius: 16px; align-items: center; background: rgba(10, 10, 15, 0.75); border: 1px solid rgba(255,255,255,0.1); width: fit-content; margin: 0 auto; z-index: 10; position: relative; transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); transform: translateY({aiControlsMinimized ? 'calc(100% - 40px)' : '0'});">
+        <!-- Swipe / Drag Handle -->
+        <div 
+          onpointerdown={handleSwipeStart} 
+          onpointerup={handleSwipeEnd}
+          style="width: 100%; height: 32px; position: absolute; top: 0; left: 0; display: flex; justify-content: center; align-items: center; cursor: grab; z-index: 11;"
+        >
+          <div style="width: 48px; height: 6px; background: rgba(255, 255, 255, 0.6); border-radius: 3px;"></div>
         </div>
 
+        <div style="font-size: 0.7rem; font-weight: 700; color: var(--accent-primary); letter-spacing: 1px; text-transform: uppercase;">
+          {isAutonomous ? 'Auto-Track' : 'Manual Mode'}
+        </div>
+        
+        {#if isAutonomous}
+          <!-- iOS Camera Style Slide Wheel -->
+          <div 
+            class="slide-wheel"
+            bind:this={wheelContainer}
+            onscroll={handleWheelScroll}
+            style="display: flex; gap: 1.5rem; align-items: center; margin: 0.25rem 0; overflow-x: auto; scroll-snap-type: x mandatory; width: 180px; height: 35px; scrollbar-width: none; -ms-overflow-style: none; -webkit-overflow-scrolling: touch; mask-image: linear-gradient(to right, transparent, black 30%, black 70%, transparent); position: relative;"
+          >
+            <!-- Spacer -->
+            <div style="min-width: calc(50% - 10px); flex-shrink: 0;"></div>
+            
+            {#each trackingTargets as target (target.id)}
+              <div 
+                data-target={target.id}
+                style="scroll-snap-align: center; font-size: {targetClass === target.id ? '0.9rem' : '0.75rem'}; font-weight: {targetClass === target.id ? '700' : '500'}; color: {targetClass === target.id ? 'var(--accent-primary)' : 'var(--text-secondary)'}; text-transform: uppercase; cursor: pointer; transition: all 0.2s; white-space: nowrap; flex-shrink: 0; padding: 0 0.5rem;"
+                onclick={() => { targetClass = target.id; scrollToTarget(target.id); }}
+              >
+                {target.label}
+              </div>
+            {/each}
+            
+            <!-- Spacer -->
+            <div style="min-width: calc(50% - 10px); flex-shrink: 0;"></div>
+          </div>
+        {:else}
+          <!-- Manual Sensors & Accessories -->
+          <div style="display: flex; gap: 0.75rem; align-items: center; margin: 0.15rem 0; width: 100%; justify-content: center;">
+            <div style="display: flex; flex-direction: column; align-items: center; font-size: 0.65rem; color: var(--text-secondary);">
+              Dist
+              <span style="color: white; font-weight: bold; font-size: 0.8rem;">{distance}</span>
+            </div>
+            <div class="divider" style="width: 1px; height: 20px; background: rgba(255,255,255,0.2);"></div>
+            <div style="display: flex; flex-direction: column; align-items: center; font-size: 0.65rem; color: var(--text-secondary);">
+              Light
+              <span style="color: white; font-weight: bold; font-size: 0.8rem;">{light}</span>
+            </div>
+            <div class="divider" style="width: 1px; height: 20px; background: rgba(255,255,255,0.2);"></div>
+            <button class="v-key btn-led" class:active={ledActive} onpointerdown={(e) => { ledActive = true; sendKeyboardCommand(); e.preventDefault(); }} onpointerup={(e) => { ledActive = false; sendKeyboardCommand(); e.preventDefault(); }} style="height: 28px; min-width: 40px; font-size: 0.7rem; padding: 0 0.5rem;">LED</button>
+            <button class="v-key btn-buzz" class:active={buzzerActive} onpointerdown={(e) => { buzzerActive = true; sendKeyboardCommand(); e.preventDefault(); }} onpointerup={(e) => { buzzerActive = false; sendKeyboardCommand(); e.preventDefault(); }} style="height: 28px; min-width: 40px; font-size: 0.7rem; padding: 0 0.5rem;">Buzz</button>
+          </div>
+        {/if}
+        
+        <div style="display: flex; gap: 1rem; align-items: center; width: 100%; justify-content: center; margin-top: 0.25rem; padding: 0 0.5rem;">
+          <!-- Mode Toggle -->
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 2px;">
+            <span style="font-size:0.55rem; color:var(--text-secondary); text-transform:uppercase; font-weight: bold;">AI Mode</span>
+            <label class="switch" style="transform: scale(0.65); margin: 0;">
+              <input type="checkbox" bind:checked={isAutonomous} />
+              <span class="slider"></span>
+            </label>
+          </div>
+
+          <!-- Play/Pause Deadman -->
+          <button class="icon-btn" style="width: 44px; height: 44px; border-radius: 50%; font-size: 1.2rem; background: {deadmanActive ? 'var(--accent-primary)' : 'rgba(255,255,255,0.1)'}; color: {deadmanActive ? '#000' : '#fff'}; display: flex; align-items: center; justify-content: center; border: 1px solid rgba(255,255,255,0.2); transition: all 0.2s;" onclick={(e) => { deadmanActive = !deadmanActive; e.preventDefault(); }}>
+            {deadmanActive ? '⏸' : '▶'}
+          </button>
+
+          <!-- Follow / Roam Toggle -->
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 2px;">
+            <span style="font-size:0.55rem; color:var(--text-secondary); text-transform:uppercase; font-weight: bold;">
+              {isAutonomous ? 'Auto Drive' : 'Sync Steer'}
+            </span>
+            <label class="switch" style="transform: scale(0.65); margin: 0;">
+              <input type="checkbox" bind:checked={viewportTurn} onchange={() => sendKeyboardCommand()} />
+              <span class="slider"></span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      {#if !isGamepadConnected}
         <div class="joystick-wrapper">
           <div class="joystick-base" onpointerdown={(e) => handlePointerDown(e, 'R')} onpointermove={handlePointerMove} onpointerup={handlePointerUp} onpointercancel={handlePointerUp} style="cursor: crosshair; touch-action: none;">
             <div class="joystick-stick" style="transform: translate({cameraX * 30}px, {cameraY * 30}px)"></div>
           </div>
         </div>
-      </div>
-    {/if}
+      {:else}
+        <div class="joystick-spacer" style="width:120px;height:120px;"></div>
+      {/if}
+    </div>
   </div>
 </main>
 
@@ -675,96 +864,131 @@
   <div class="settings-sidebar glass-panel safe-area-right safe-area-top safe-area-bottom" onclick={(e) => e.stopPropagation()}>
     <div class="sidebar-header">
       <h2>Settings</h2>
-      <button class="btn-danger icon-btn" onclick={() => showSettings = false}>×</button>
+      <div style="display: flex; gap: 0.75rem; align-items: center; margin-right: 0.25rem;">
+        <button class="icon-btn" style="background: rgba(255,255,255,0.1); border-radius: 50%; transition: transform 0.3s ease; transform: rotate({allExpanded ? '180deg' : '0deg'}); width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; font-size: 1.2rem;" onclick={() => toggleAllSettings(!allExpanded)}>
+          ▼
+        </button>
+        <button class="btn-danger icon-btn" style="width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.5rem;" onclick={() => showSettings = false}>×</button>
+      </div>
     </div>
     
     <div class="settings-content">
+
+      <!-- 1. Connection -->
       <div class="settings-group">
-        <h3>Connection</h3>
-        <input type="text" bind:value={ipAddress} placeholder="Raspberry Pi IP" disabled={connected} onkeydown={(e) => e.key === 'Enter' && !connected && toggleConnection()} />
-        <button onclick={toggleConnection} class={connected ? 'btn-danger' : 'btn-primary'} style="width: 100%; margin-top: 0.5rem;">
-          {connected ? 'Disconnect' : 'Connect'}
-        </button>
-        {#if connectionError}
-          <div style="color: red; margin-top: 0.5rem; font-size: 0.9em; text-align: center;">
-            {connectionError}
+        <h3 onclick={() => expandedSections.connection = !expandedSections.connection} style="cursor: pointer; display: flex; justify-content: space-between; align-items: center; margin-bottom: {expandedSections.connection ? '1rem' : '0'}; transition: margin 0.2s;">
+          Connection
+          <span style="font-size: 0.8rem; color: var(--text-secondary);">{expandedSections.connection ? '▼' : '▶'}</span>
+        </h3>
+        {#if expandedSections.connection}
+          <div>
+            <input type="text" bind:value={ipAddress} placeholder="Raspberry Pi IP" disabled={connected} onkeydown={(e) => e.key === 'Enter' && !connected && toggleConnection()} />
+            <button onclick={toggleConnection} class={connected ? 'btn-danger' : 'btn-primary'} style="width: 100%; margin-top: 0.5rem;">
+              {connected ? 'Disconnect' : 'Connect'}
+            </button>
+            {#if connectionError}
+              <div style="color: red; margin-top: 0.5rem; font-size: 0.9em; text-align: center;">
+                {connectionError}
+              </div>
+            {/if}
           </div>
         {/if}
       </div>
 
+      <!-- 2. Controller -->
       <div class="settings-group">
-        <h3>UI Preferences</h3>
-        <label class="slider-group">
-          UI Opacity: {Math.round(uiOpacity * 100)}%
-          <input type="range" min="0.1" max="1" step="0.05" bind:value={uiOpacity} />
-        </label>
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 1rem;">
-          <span style="font-size:0.85rem; color:var(--text-secondary)">Show Telemetry</span>
-          <label class="switch">
-            <input type="checkbox" bind:checked={showTelemetry} />
-            <span class="slider"></span>
-          </label>
-        </div>
-      </div>
-
-      <div class="settings-group">
-        <h3>Robot Controls</h3>
-        <label class="slider-group">Motor Speed: {motorSpeed}%
-          <input type="range" min="0" max="100" bind:value={motorSpeed} oninput={() => sendKeyboardCommand()} />
-        </label>
-        <label class="slider-group">Servo Sens: {servoSensitivity}%
-          <input type="range" min="0" max="100" bind:value={servoSensitivity} oninput={() => sendKeyboardCommand()} />
-        </label>
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 1rem;">
-          <span style="font-size:0.85rem; color:var(--text-secondary)">Follow Camera</span>
-          <label class="switch">
-            <input type="checkbox" bind:checked={viewportTurn} onchange={() => sendKeyboardCommand()} />
-            <span class="slider"></span>
-          </label>
-        </div>
-      </div>
-
-      <div class="settings-group">
-        <h3>Autonomous Mode</h3>
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
-          <span style="font-size:0.85rem; color:var(--text-secondary)">Enable AI</span>
-          <label class="switch">
-            <input type="checkbox" bind:checked={isAutonomous} />
-            <span class="slider"></span>
-          </label>
-        </div>
-        <div style="display: flex; flex-direction: column; gap: 0.5rem;">
-          <label style="font-size:0.85rem; color:var(--text-secondary)">Target Class</label>
-          <select bind:value={targetClass} class="styled-select">
-            <option value="person">Person</option>
-            <option value="car">Car</option>
-            <option value="dog">Dog</option>
-            <option value="cat">Cat</option>
-            <option value="sports ball">Sports Ball</option>
-            <option value="bottle">Bottle</option>
-            <option value="chair">Chair</option>
-          </select>
-        </div>
-      </div>
-
-      <div class="settings-group">
-        <h3>Controller</h3>
-        <div class="sensor-row">
-          <span>Status:</span>
-          <span class="value" class:disconnected={controllerStatus === "Not Detected"}>{controllerStatus !== "Not Detected" ? controllerType : "Not Detected"}</span>
-        </div>
-        {#if controllerStatus !== "Not Detected"}
-          <div class="sensor-row">
-            <span>Battery:</span>
-            <span class="value">{controllerBattery}</span>
+        <h3 onclick={() => expandedSections.controller = !expandedSections.controller} style="cursor: pointer; display: flex; justify-content: space-between; align-items: center; margin-bottom: {expandedSections.controller ? '1rem' : '0'}; transition: margin 0.2s;">
+          Controller
+          <span style="font-size: 0.8rem; color: var(--text-secondary);">{expandedSections.controller ? '▼' : '▶'}</span>
+        </h3>
+        {#if expandedSections.controller}
+          <div>
+            <div class="sensor-row">
+              <span>Status:</span>
+              <span class="value" class:disconnected={controllerStatus === "Not Detected"}>{controllerStatus !== "Not Detected" ? controllerType : "Not Detected"}</span>
+            </div>
+            {#if controllerStatus !== "Not Detected"}
+              <div class="sensor-row">
+                <span>Battery:</span>
+                <span class="value">{controllerBattery}</span>
+              </div>
+            {/if}
+            <div style="display: flex; gap: 0.5rem; margin-top: 0.5rem;">
+              <button class="btn-primary" onclick={() => showGamepadModal = true} style="flex: 1;">Find</button>
+              {#if controllerStatus !== "Not Detected"}
+                <button class="btn-primary" onclick={() => showCalibration = true} style="flex: 1;">Calibrate</button>
+              {/if}
+            </div>
           </div>
         {/if}
-        <div style="display: flex; gap: 0.5rem; margin-top: 0.5rem;">
-          <button class="btn-primary" onclick={() => showGamepadModal = true} style="flex: 1;">Find</button>
-          {#if controllerStatus !== "Not Detected"}
-            <button class="btn-primary" onclick={() => showCalibration = true} style="flex: 1;">Calibrate</button>
-          {/if}
-        </div>
+      </div>
+
+      <!-- 3. UI Preferences -->
+      <div class="settings-group">
+        <h3 onclick={() => expandedSections.uiPreferences = !expandedSections.uiPreferences} style="cursor: pointer; display: flex; justify-content: space-between; align-items: center; margin-bottom: {expandedSections.uiPreferences ? '1rem' : '0'}; transition: margin 0.2s;">
+          UI Preferences
+          <span style="font-size: 0.8rem; color: var(--text-secondary);">{expandedSections.uiPreferences ? '▼' : '▶'}</span>
+        </h3>
+        {#if expandedSections.uiPreferences}
+          <div>
+            <label class="slider-group">
+              UI Opacity: {Math.round(uiOpacity * 100)}%
+              <input type="range" min="0.1" max="1" step="0.05" bind:value={uiOpacity} />
+            </label>
+          </div>
+        {/if}
+      </div>
+
+      <!-- 4. AI Tracking Targets -->
+      <div class="settings-group">
+        <h3 onclick={() => expandedSections.aiTracking = !expandedSections.aiTracking} style="cursor: pointer; display: flex; justify-content: space-between; align-items: center; margin-bottom: {expandedSections.aiTracking ? '1rem' : '0'}; transition: margin 0.2s;">
+          AI Tracking Targets
+          <span style="font-size: 0.8rem; color: var(--text-secondary);">{expandedSections.aiTracking ? '▼' : '▶'}</span>
+        </h3>
+        {#if expandedSections.aiTracking}
+          <div>
+            <p style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 0; margin-bottom: 0.5rem;">Configure which targets appear in the slide wheel.</p>
+            <div style="display: flex; flex-direction: column; gap: 0.5rem; max-height: 200px; overflow-y: auto; padding-right: 0.5rem;">
+              {#each allTrackingTargets as target, index (target.id)}
+                <div 
+                  draggable="true"
+                  ondragstart={(e) => handleDragStart(e, index)}
+                  ondragover={handleDragOver}
+                  ondrop={(e) => handleDrop(e, index)}
+                  ondragend={() => draggedIndex = null}
+                  style="display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.05); padding: 0.25rem 0.5rem; border-radius: 6px; cursor: grab; opacity: {draggedIndex === index ? 0.5 : 1};"
+                >
+                  <div style="display: flex; align-items: center; gap: 0.75rem;">
+                    <div style="color: rgba(255,255,255,0.3); font-size: 1.2rem; user-select: none;">≡</div>
+                    <span style="font-size:0.85rem; color:var(--text-secondary); text-transform: capitalize;">{target.label}</span>
+                  </div>
+                  <label class="switch" style="transform: scale(0.8); margin: 0;">
+                    <input type="checkbox" bind:checked={target.active} />
+                    <span class="slider"></span>
+                  </label>
+                </div>
+              {/each}
+            </div>
+          </div>
+        {/if}
+      </div>
+
+      <!-- 5. AI Debug -->
+      <div class="settings-group">
+        <h3 onclick={() => expandedSections.aiDebug = !expandedSections.aiDebug} style="cursor: pointer; display: flex; justify-content: space-between; align-items: center; margin-bottom: {expandedSections.aiDebug ? '1rem' : '0'}; transition: margin 0.2s;">
+          AI Debug
+          <span style="font-size: 0.8rem; color: var(--text-secondary);">{expandedSections.aiDebug ? '▼' : '▶'}</span>
+        </h3>
+        {#if expandedSections.aiDebug}
+          <div>
+            {#if connectionError}
+              <div style="color: red; margin-bottom: 0.5rem; font-size: 0.9em; text-align: center;">
+                {connectionError}
+              </div>
+            {/if}
+            <pre class="debug-text" style="white-space: pre-wrap; font-size: 0.75rem;">{aiDebugInfo || "Waiting for frames..."}</pre>
+          </div>
+        {/if}
       </div>
     </div>
   </div>

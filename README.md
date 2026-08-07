@@ -3,6 +3,14 @@
 > **Note:** This repository has been heavily customized to include a modern microservices architecture, a Rust-based Tauri frontend/backend (Desktop + iOS app), and YOLOv8 Autonomous Driving logic.
 > For instructions on deploying the mobile iOS app or troubleshooting Xcode errors (like `PhaseScriptExecution`), please read the **[iOS Deployment Guide](./docs/ios_deployment.md)**.
 
+### Local Wi-Fi AP & Hardware Pairing
+If the Raspberry Pi gateway cannot connect to a known Wi-Fi network on boot, it will automatically broadcast a local AP hotspot:
+- **SSID:** `Picar-Vision-[last 4 of MAC]`
+- **Password:** `picar-vision`
+
+Once connected to the AP network via the desktop or iOS app, you MUST perform a hardware pairing to unlock telemetry and control.
+**Pairing Procedure:** Toggle the Freenove base Motor Power switch OFF and ON twice. The backend will detect the voltage drop on the ADC and unlock control.
+
 
 
 > A 4WD smart car kit for Raspberry Pi.

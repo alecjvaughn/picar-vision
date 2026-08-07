@@ -56,3 +56,9 @@ This document tracks changes requested by the user and implemented during active
 - **Baked-in Model Assets:** Refactored `vision.rs` to load the `yolov8n.onnx` model via `include_bytes!` instead of looking it up on disk, fixing 'AI Model not found' errors on MacOS.
 - **Native iOS Inference (CoreML):** Created a bespoke Tauri Plugin (`tauri-plugin-coreml`) built in Swift using `VNCoreMLModel` and `VNCoreMLRequest`.
 - **Conditional Inference Routing:** Refactored `websocket.rs` telemetry loop to conditionally route autonomous driving telemetry inference to `tauri-plugin-coreml` on iOS (offloading to the Apple Neural Engine) and keeping `ort` (ONNX Runtime) exclusively for macOS.
+
+## Track: `local_wifi_20260807`
+
+### 1. Networking & Pairing (Features)
+- **Local Wi-Fi Fallback:** Configured a systemd service (`picar-ap-fallback.service`) and bash script to initialize a local AP hotspot with a unique MAC-based SSID if standard networking fails on boot.
+- **Hardware Switch Pairing:** Added an asynchronous pairing monitor in the gateway server to detect consecutive physical motor switch toggles via the battery voltage ADC channel, gating websocket command processing until paired.

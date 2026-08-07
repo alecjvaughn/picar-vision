@@ -15,6 +15,6 @@ pub struct Coreml<R: Runtime>(AppHandle<R>);
 
 impl<R: Runtime> Coreml<R> {
   pub fn run_inference(&self, _payload: InferenceRequest) -> crate::Result<InferenceResponse> {
-    Ok(InferenceResponse { boxes: vec![] })
+    Ok(InferenceResponse { boxes: vec![], thermal_state: "nominal".to_string() })
   }
 }

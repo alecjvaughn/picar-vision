@@ -1,3 +1,4 @@
+use base64::{engine::general_purpose::STANDARD, Engine as _};
 use image::{imageops::FilterType, GenericImageView};
 use ndarray::{s, Array, IxDyn};
 use ort::session::builder::GraphOptimizationLevel;
@@ -5,13 +6,15 @@ use ort::session::Session;
 use ort::value::Tensor;
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use base64::{Engine as _, engine::general_purpose::STANDARD};
 
 pub struct VisionState {
     pub session: Mutex<Option<Arc<Mutex<Session>>>>,
     pub init_error: Mutex<Option<String>>,
     pub target_class: Mutex<String>,
     pub autonomous_mode: Mutex<bool>,
+    pub deadman_active: Mutex<bool>,
+    pub follow_mode: Mutex<bool>,
+    pub free_roam: Mutex<bool>,
 }
 
 const MODEL_BYTES: &[u8] = include_bytes!("../assets/yolov8n.onnx");
@@ -64,21 +67,21 @@ pub fn process_frame(
 
     let input_value = Tensor::from_array(input_array)?;
     let outputs = session.run(ort::inputs![input_value])?;
-    
+
     // Output shape for YOLOv8n: [1, 84, 8400]
     let (shape, slice) = outputs[0].try_extract_tensor::<f32>()?;
     let num_anchors = shape[2] as usize;
     let num_features = shape[1] as usize;
-    
+
     let mut boxes = Vec::new();
-    
+
     let x_scale = orig_width as f32 / 640.0;
     let y_scale = orig_height as f32 / 640.0;
 
     let mut absolute_max_conf = 0.0;
 
     for i in 0..num_anchors {
-        // Data is flattened in [1, 84, 8400]. 
+        // Data is flattened in [1, 84, 8400].
         // For anchor `i`, feature `f` is at index: f * 8400 + i
         let cx = slice[0 * num_anchors + i];
         let cy = slice[1 * num_anchors + i];
@@ -94,7 +97,7 @@ pub fn process_frame(
                 class_id = c;
             }
         }
-        
+
         if max_conf > absolute_max_conf {
             absolute_max_conf = max_conf;
         }
@@ -120,11 +123,17 @@ pub fn process_frame(
 
     // NMS
     let mut nms_boxes = Vec::new();
-    boxes.sort_by(|a, b| b.confidence.partial_cmp(&a.confidence).unwrap_or(std::cmp::Ordering::Equal));
-    
+    boxes.sort_by(|a, b| {
+        b.confidence
+            .partial_cmp(&a.confidence)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
+
     let mut active = vec![true; boxes.len()];
     for i in 0..boxes.len() {
-        if !active[i] { continue; }
+        if !active[i] {
+            continue;
+        }
         nms_boxes.push(boxes[i].clone());
         for j in (i + 1)..boxes.len() {
             if active[j] && iou(&boxes[i], &boxes[j]) > iou_threshold {
@@ -142,25 +151,99 @@ fn iou(a: &BoundingBox, b: &BoundingBox) -> f32 {
     let x2 = f32::min(a.x + a.width, b.x + b.width);
     let y2 = f32::min(a.y + a.height, b.y + b.height);
 
-    if x2 < x1 || y2 < y1 { return 0.0; }
-    
+    if x2 < x1 || y2 < y1 {
+        return 0.0;
+    }
+
     let intersection = (x2 - x1) * (y2 - y1);
     let area_a = a.width * a.height;
     let area_b = b.width * b.height;
-    
+
     intersection / (area_a + area_b - intersection)
 }
 
 fn get_class_name(id: usize) -> String {
     let classes = [
-        "person", "bicycle", "car", "motorcycle", "airplane", "bus", "train", "truck", "boat", "traffic light",
-        "fire hydrant", "stop sign", "parking meter", "bench", "bird", "cat", "dog", "horse", "sheep", "cow",
-        "elephant", "bear", "zebra", "giraffe", "backpack", "umbrella", "handbag", "tie", "suitcase", "frisbee",
-        "skis", "snowboard", "sports ball", "kite", "baseball bat", "baseball glove", "skateboard", "surfboard", "tennis racket", "bottle",
-        "wine glass", "cup", "fork", "knife", "spoon", "bowl", "banana", "apple", "sandwich", "orange",
-        "broccoli", "carrot", "hot dog", "pizza", "donut", "cake", "chair", "couch", "potted plant", "bed",
-        "dining table", "toilet", "tv", "laptop", "mouse", "remote", "keyboard", "cell phone", "microwave", "oven",
-        "toaster", "sink", "refrigerator", "book", "clock", "vase", "scissors", "teddy bear", "hair drier", "toothbrush"
+        "person",
+        "bicycle",
+        "car",
+        "motorcycle",
+        "airplane",
+        "bus",
+        "train",
+        "truck",
+        "boat",
+        "traffic light",
+        "fire hydrant",
+        "stop sign",
+        "parking meter",
+        "bench",
+        "bird",
+        "cat",
+        "dog",
+        "horse",
+        "sheep",
+        "cow",
+        "elephant",
+        "bear",
+        "zebra",
+        "giraffe",
+        "backpack",
+        "umbrella",
+        "handbag",
+        "tie",
+        "suitcase",
+        "frisbee",
+        "skis",
+        "snowboard",
+        "sports ball",
+        "kite",
+        "baseball bat",
+        "baseball glove",
+        "skateboard",
+        "surfboard",
+        "tennis racket",
+        "bottle",
+        "wine glass",
+        "cup",
+        "fork",
+        "knife",
+        "spoon",
+        "bowl",
+        "banana",
+        "apple",
+        "sandwich",
+        "orange",
+        "broccoli",
+        "carrot",
+        "hot dog",
+        "pizza",
+        "donut",
+        "cake",
+        "chair",
+        "couch",
+        "potted plant",
+        "bed",
+        "dining table",
+        "toilet",
+        "tv",
+        "laptop",
+        "mouse",
+        "remote",
+        "keyboard",
+        "cell phone",
+        "microwave",
+        "oven",
+        "toaster",
+        "sink",
+        "refrigerator",
+        "book",
+        "clock",
+        "vase",
+        "scissors",
+        "teddy bear",
+        "hair drier",
+        "toothbrush",
     ];
     if id < classes.len() {
         classes[id].to_string()

@@ -1,30 +1,30 @@
 pub mod controller;
-pub mod websocket;
 pub mod vision;
+pub mod websocket;
 
-use std::sync::atomic::{AtomicI32, AtomicIsize, AtomicU32, AtomicBool, Ordering};
-use tokio::sync::Mutex;
+use std::sync::atomic::{AtomicBool, AtomicI32, AtomicIsize, AtomicU32, Ordering};
 use std::sync::Arc;
-use websocket::{connect_to_pi, disconnect_from_pi, send_pi_command, WsState};
-use vision::{init_vision, VisionState};
 use tauri::Manager;
+use tokio::sync::Mutex;
+use vision::{init_vision, VisionState};
+use websocket::{connect_to_pi, disconnect_from_pi, send_pi_command, WsState};
 
 pub struct ControlSettings {
     pub motor_speed: AtomicU32,
     pub servo_sensitivity: AtomicU32,
     pub viewport_turn: AtomicBool,
-    
+
     // Calibration parameters (values * 1000, so 0.150 is 150)
     pub lx_center: AtomicI32,
     pub ly_center: AtomicI32,
     pub rx_center: AtomicI32,
     pub ry_center: AtomicI32,
-    
+
     pub lx_deadzone: AtomicI32,
     pub ly_deadzone: AtomicI32,
     pub rx_deadzone: AtomicI32,
     pub ry_deadzone: AtomicI32,
-    
+
     // -1 = Auto, -2 = Disconnect All, >= 0 = Force Gamepad ID
     pub force_active_gamepad: AtomicIsize,
 }
@@ -47,15 +47,21 @@ fn update_settings(
 
 #[tauri::command]
 fn update_calibration(
-    lx_c: i32, ly_c: i32, rx_c: i32, ry_c: i32,
-    lx_d: i32, ly_d: i32, rx_d: i32, ry_d: i32,
+    lx_c: i32,
+    ly_c: i32,
+    rx_c: i32,
+    ry_c: i32,
+    lx_d: i32,
+    ly_d: i32,
+    rx_d: i32,
+    ry_d: i32,
     settings: tauri::State<ControlSettings>,
 ) {
     settings.lx_center.store(lx_c, Ordering::Relaxed);
     settings.ly_center.store(ly_c, Ordering::Relaxed);
     settings.rx_center.store(rx_c, Ordering::Relaxed);
     settings.ry_center.store(ry_c, Ordering::Relaxed);
-    
+
     settings.lx_deadzone.store(lx_d, Ordering::Relaxed);
     settings.ly_deadzone.store(ly_d, Ordering::Relaxed);
     settings.rx_deadzone.store(rx_d, Ordering::Relaxed);
@@ -78,11 +84,38 @@ async fn set_autonomous_mode(
     Ok(())
 }
 
+#[tauri::command]
+async fn set_deadman_state(
+    active: bool,
+    vision_state: tauri::State<'_, Arc<VisionState>>,
+) -> Result<(), String> {
+    *vision_state.deadman_active.lock().await = active;
+    Ok(())
+}
+
+#[tauri::command]
+async fn set_follow_mode(
+    active: bool,
+    vision_state: tauri::State<'_, Arc<VisionState>>,
+) -> Result<(), String> {
+    *vision_state.follow_mode.lock().await = active;
+    Ok(())
+}
+
+#[tauri::command]
+async fn set_free_roam(
+    active: bool,
+    vision_state: tauri::State<'_, Arc<VisionState>>,
+) -> Result<(), String> {
+    *vision_state.free_roam.lock().await = active;
+    Ok(())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     #[cfg(target_os = "ios")]
     let builder = tauri::Builder::default().plugin(tauri_plugin_coreml::init());
-    
+
     #[cfg(not(target_os = "ios"))]
     let builder = tauri::Builder::default();
 
@@ -110,10 +143,13 @@ pub fn run() {
             init_error: Mutex::new(None),
             target_class: Mutex::new("person".to_string()),
             autonomous_mode: Mutex::new(false),
+            deadman_active: Mutex::new(false),
+            follow_mode: Mutex::new(false),
+            free_roam: Mutex::new(false),
         }))
         .setup(|app| {
             let state = app.state::<Arc<VisionState>>();
-            
+
             match init_vision() {
                 Ok(session) => {
                     let session_arc = Arc::new(Mutex::new(session));
@@ -131,7 +167,7 @@ pub fn run() {
                     });
                 }
             }
-            
+
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -141,7 +177,10 @@ pub fn run() {
             update_settings,
             update_calibration,
             set_active_gamepad,
-            set_autonomous_mode
+            set_autonomous_mode,
+            set_deadman_state,
+            set_follow_mode,
+            set_free_roam
         ])
         .setup(|app| {
             // let handle = app.handle().clone();
