@@ -190,7 +190,7 @@
   
   let ledActive = $state(false);
   let buzzerActive = $state(false);
-  let lineTrackingActive = $state(false);
+  let manualTrackingMode = $state('line');
   let aiDebugInfo = $state('');
 
   // Svelte 5 equivalent of stores
@@ -338,7 +338,7 @@
     
     payload.led = ledActive ? "blink" : "off";
     payload.buzzer = buzzerActive;
-    payload.line_tracking = lineTrackingActive;
+    payload.line_tracking = (!isAutonomous && deadmanActive) ? manualTrackingMode : "off";
 
     try {
       await invoke('send_pi_command', { command: JSON.stringify(payload) });
@@ -625,7 +625,10 @@
     if (!isSingleJoyCon) {
         if (left !== lastWebGamepadState.left) { ledActive = left; sendKeyboardCommand(); }
         if (up !== lastWebGamepadState.up) { buzzerActive = up; sendKeyboardCommand(); }
-        if (down !== lastWebGamepadState.down) { lineTrackingActive = down; sendKeyboardCommand(); }
+        if (down && !lastWebGamepadState.down) { 
+            manualTrackingMode = manualTrackingMode === 'line' ? 'lane' : 'line'; 
+            sendKeyboardCommand(); 
+        }
         // Prevent camera movement from D-pad
         up = false;
         down = false;
@@ -900,7 +903,7 @@
             <div class="divider" style="width: 1px; height: 20px; background: rgba(255,255,255,0.2);"></div>
             <button class="v-key btn-led" class:active={ledActive} onpointerdown={(e) => { ledActive = true; sendKeyboardCommand(); e.preventDefault(); }} onpointerup={(e) => { ledActive = false; sendKeyboardCommand(); e.preventDefault(); }} style="height: 28px; min-width: 40px; font-size: 0.7rem; padding: 0 0.5rem;">LED</button>
             <button class="v-key btn-buzz" class:active={buzzerActive} onpointerdown={(e) => { buzzerActive = true; sendKeyboardCommand(); e.preventDefault(); }} onpointerup={(e) => { buzzerActive = false; sendKeyboardCommand(); e.preventDefault(); }} style="height: 28px; min-width: 40px; font-size: 0.7rem; padding: 0 0.5rem;">Buzz</button>
-            <button class="v-key btn-line" class:active={lineTrackingActive} onpointerdown={(e) => { lineTrackingActive = true; sendKeyboardCommand(); e.preventDefault(); }} onpointerup={(e) => { lineTrackingActive = false; sendKeyboardCommand(); e.preventDefault(); }} style="height: 28px; min-width: 40px; font-size: 0.7rem; padding: 0 0.5rem;">Line</button>
+            <button class="v-key btn-line" class:active={manualTrackingMode === 'lane'} onpointerdown={(e) => { manualTrackingMode = manualTrackingMode === 'line' ? 'lane' : 'line'; sendKeyboardCommand(); e.preventDefault(); }} style="height: 28px; min-width: 40px; font-size: 0.7rem; padding: 0 0.5rem;">{manualTrackingMode === 'line' ? 'Line' : 'Lane'}</button>
           </div>
         {/if}
         
