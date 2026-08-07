@@ -720,6 +720,7 @@
       if (event.payload.ai_off) {
         aiDebugInfo = "";
       } else {
+        if (event.payload.ai_debug) debugParts.push(event.payload.ai_debug);
         if (event.payload.shape) debugParts.push(`Shape: ${event.payload.shape}`);
         if (event.payload.max_conf !== undefined) debugParts.push(`MaxConf: ${event.payload.max_conf.toFixed(3)}`);
         debugParts.push(`Boxes: ${boundingBoxes.length}`);

@@ -242,6 +242,9 @@ pub async fn connect_to_pi(
                                                     }
                                                 }
 
+                                                let distance = json.get("distance").and_then(|d| d.as_f64()).unwrap_or(999.0);
+                                                let mut debug_msg = String::new();
+
                                                 let mut throttle = 0.0;
                                                 let mut steering = 0.0;
 
@@ -261,41 +264,62 @@ pub async fn connect_to_pi(
                                                     if deadman {
                                                         if x_offset.abs() > 0.1 {
                                                             current_pan += (x_offset * 0.15) as f32;
-                                                            // Pan towards target
                                                         }
                                                         if y_offset.abs() > 0.1 {
-                                                            current_tilt -=
-                                                                (y_offset * 0.15) as f32;
-                                                            // Tilt towards target
+                                                            current_tilt -= (y_offset * 0.15) as f32;
                                                         }
-
                                                         current_pan = current_pan.clamp(-1.0, 1.0);
-                                                        current_tilt =
-                                                            current_tilt.clamp(-1.0, 1.0);
+                                                        current_tilt = current_tilt.clamp(-1.0, 1.0);
                                                     }
                                                 }
 
                                                 if deadman {
-                                                    if obstacle_box.is_some() {
-                                                        if free_roam {
-                                                            // Obstacle avoidance: reverse and turn
-                                                            throttle = -0.6;
-                                                            steering = 1.0;
-                                                        } else {
-                                                            // Stop if obstacle directly in front
-                                                            throttle = 0.0;
-                                                            steering = 0.0;
-                                                        }
-                                                    } else if free_roam {
-                                                        // Drive forward
-                                                        throttle = 0.6;
-                                                        steering =
-                                                            if follow { current_pan } else { 0.0 };
-                                                    } else if follow && target_box.is_some() {
-                                                        // Follow target
+                                                    let safe_dist = 40.0;
+                                                    let stop_dist = 25.0;
+                                                    let default_speed = 0.30;
+                                                    
+                                                    if let Some(_) = target_box {
                                                         steering = current_pan;
-                                                        throttle = 0.6;
+                                                        if distance > safe_dist {
+                                                            throttle = default_speed;
+                                                            debug_msg = format!("Tracking {} | Dist: {:.1}cm", target, distance);
+                                                        } else if distance > stop_dist {
+                                                            throttle = 0.0;
+                                                            debug_msg = format!("{} Reached | Dist: {:.1}cm", target, distance);
+                                                        } else {
+                                                            throttle = -default_speed;
+                                                            debug_msg = format!("Too Close to {}, Reversing! | Dist: {:.1}cm", target, distance);
+                                                        }
+                                                    } else {
+                                                        // Fallback to ultrasonic scan/avoid
+                                                        if distance > safe_dist {
+                                                            throttle = default_speed;
+                                                            steering = 0.0;
+                                                            debug_msg = format!("Scanning for {}... Clear: {:.1}cm", target, distance);
+                                                        } else if distance > stop_dist {
+                                                            throttle = default_speed;
+                                                            steering = 1.0; 
+                                                            debug_msg = format!("Obstacle Detected, Turning | Dist: {:.1}cm", distance);
+                                                            
+                                                            // Scan camera horizontally while turning
+                                                            if current_pan > 0.0 {
+                                                                current_pan -= 0.1;
+                                                            } else {
+                                                                current_pan += 0.1;
+                                                            }
+                                                        } else {
+                                                            throttle = -default_speed;
+                                                            steering = -1.0;
+                                                            debug_msg = format!("Obstacle Critical, Reversing | Dist: {:.1}cm", distance);
+                                                        }
                                                     }
+                                                }
+
+                                                if !debug_msg.is_empty() {
+                                                    json.as_object_mut().unwrap().insert(
+                                                        "ai_debug".to_string(),
+                                                        serde_json::Value::String(debug_msg),
+                                                    );
                                                 }
 
                                                 let cmd = serde_json::json!({
