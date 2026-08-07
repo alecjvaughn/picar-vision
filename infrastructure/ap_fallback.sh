@@ -13,11 +13,12 @@ sleep 15
     PASSWORD="picar-vision"
 
     # Remove existing hotspot if any
-    nmcli connection show hotspot >/dev/null 2>&1 && nmcli connection delete hotspot
+    nmcli connection show "Hotspot" >/dev/null 2>&1 && nmcli connection delete "Hotspot"
+    nmcli connection show "$SSID" >/dev/null 2>&1 && nmcli connection delete "$SSID"
     
     # Create and start the hotspot
     echo "Starting hotspot with SSID: $SSID"
-    nmcli device wifi hotspot ifname wlan0 ssid "$SSID" password "$PASSWORD" connection.id hotspot
+    nmcli device wifi hotspot ifname wlan0 ssid "$SSID" password "$PASSWORD"
 # else
 #    echo "Active WiFi connection found. Skipping AP Fallback."
 # fi
