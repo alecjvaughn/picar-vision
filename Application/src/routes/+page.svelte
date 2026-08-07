@@ -448,7 +448,7 @@
   let lastFrameTime: number;
   let activeGamepadId: string | null = null;
   let autoSelectedPadId: string | null = null;
-  let lastWebGamepadState = { lx: 0, ly: 0, rx: 0, ry: 0, up: false, down: false, left: false, right: false, r1: false, deadman: false, aiToggle: false, syncToggle: false };
+  let lastWebGamepadState = { lx: 0, ly: 0, rx: 0, ry: 0, up: false, down: false, left: false, right: false, r1: false, deadman: false, btnNorth: false, btnSouth: false, btnEast: false, btnWest: false, btnPlus: false, btnMinus: false };
 
   function setGamepadMode(id: string | null) {
     activeGamepadId = id;
@@ -536,40 +536,62 @@
     let right = pad.buttons[15]?.pressed || false;
     const r1 = pad.buttons[5]?.pressed || false; // R1
 
-    let deadman = pad.buttons[7]?.pressed || pad.buttons[6]?.pressed || pad.buttons[4]?.pressed || false;
-    let aiToggle = pad.buttons[9]?.pressed || pad.buttons[11]?.pressed || false; // Start or R3
-    let syncToggle = pad.buttons[8]?.pressed || pad.buttons[10]?.pressed || false; // Select or L3
+    let deadman = pad.buttons[7]?.pressed || pad.buttons[6]?.pressed || false; // L2/R2
+    let btnPlus = pad.buttons[9]?.pressed || false; // Start/Options/Plus
+    let btnMinus = pad.buttons[8]?.pressed || false; // Select/Share/Minus
+    let btnNorth = pad.buttons[3]?.pressed || false; // Y/X
+    let btnSouth = pad.buttons[0]?.pressed || false; // B/A
+    let btnEast = pad.buttons[1]?.pressed || false; // A/B
+    let btnWest = pad.buttons[2]?.pressed || false; // X/Y
+    let btnL1 = pad.buttons[4]?.pressed || false; // L1 / SL
+    let btnR1 = pad.buttons[5]?.pressed || false; // R1 / SR
 
     // If it's a Single Joy-Con, fix its layout
     const isSingleJoyCon = pad.id.includes("Joy-Con (L)") || pad.id.includes("Joy-Con (R)");
     if (isSingleJoyCon) {
-      // macOS treats Single Joy-Cons as "Micro Gamepads", meaning the analog stick
-      // is often zeroed out and mapped exclusively to the digital D-Pad (buttons 12-15).
-      // We must map it back to motor controls (lx, ly) so the car can drive!
       if (lx === 0 && ly === 0) {
-        if (pad.buttons[12]?.pressed) ly = -1; // Up -> forward throttle
-        if (pad.buttons[13]?.pressed) ly = 1;  // Down -> reverse throttle
-        if (pad.buttons[14]?.pressed) lx = -1; // Left -> steer left
-        if (pad.buttons[15]?.pressed) lx = 1;  // Right -> steer right
+        if (pad.buttons[12]?.pressed) ly = -1;
+        if (pad.buttons[13]?.pressed) ly = 1; 
+        if (pad.buttons[14]?.pressed) lx = -1;
+        if (pad.buttons[15]?.pressed) lx = 1; 
       } else if (Math.abs(rx) > 0 || Math.abs(ry) > 0) {
         lx = rx;
         ly = ry;
       }
       
-      // And macOS maps the physical face buttons to 0, 1, 2, 3.
-      // We map these to the Camera D-Pad variables.
-      up = pad.buttons[3]?.pressed || false;    // Top button
-      down = pad.buttons[0]?.pressed || false;  // Bottom button
-      left = pad.buttons[2]?.pressed || false;  // Left button
-      right = pad.buttons[1]?.pressed || false; // Right button
+      if (!btnL1 && !btnR1) {
+        up = btnNorth;
+        down = btnSouth;
+        left = btnWest;
+        right = btnEast;
+      }
     }
 
-    if (aiToggle && !lastWebGamepadState.aiToggle) {
-        isAutonomous = !isAutonomous;
+    // UI Menu Toggles (Plus/Minus)
+    if (btnPlus && !lastWebGamepadState.btnPlus) settingsOpen = !settingsOpen;
+    if (btnMinus && !lastWebGamepadState.btnMinus) aiControlsMinimized = !aiControlsMinimized;
+
+    // AI & Robot Control Toggles (North/West)
+    if (!btnL1 && !btnR1 && !isSingleJoyCon) {
+        if (btnNorth && !lastWebGamepadState.btnNorth) isAutonomous = !isAutonomous;
+        if (btnWest && !lastWebGamepadState.btnWest) viewportTurn = !viewportTurn;
     }
-    if (syncToggle && !lastWebGamepadState.syncToggle) {
-        viewportTurn = !viewportTurn;
+
+    // Speed Adjustments (SL/SR + East/South)
+    let speedChanged = false;
+    if (btnL1) {
+        if (btnEast && !lastWebGamepadState.btnEast) { motorSpeed = Math.min(100, motorSpeed + 5); speedChanged = true; }
+        if (btnSouth && !lastWebGamepadState.btnSouth) { motorSpeed = Math.max(0, motorSpeed - 5); speedChanged = true; }
     }
+    if (btnR1) {
+        if (btnEast && !lastWebGamepadState.btnEast) { servoSensitivity = Math.min(100, servoSensitivity + 5); speedChanged = true; }
+        if (btnSouth && !lastWebGamepadState.btnSouth) { servoSensitivity = Math.max(0, servoSensitivity - 5); speedChanged = true; }
+    }
+    
+    if (speedChanged) {
+        invoke('update_settings', { motorSpeed, servoSensitivity }).catch(console.error);
+    }
+
     if (deadman !== lastWebGamepadState.deadman) {
         deadmanActive = deadman;
     }
@@ -583,21 +605,26 @@
     gpDpadDown = down;
     gpDpadLeft = left;
     gpDpadRight = right;
-    gpBtnSnap = r1;
+    // Only snap if R1 is pressed without E/S combos
+    gpBtnSnap = btnR1 && !btnEast && !btnSouth;
 
     const changed = 
       lx !== lastWebGamepadState.lx || ly !== lastWebGamepadState.ly || 
       rx !== lastWebGamepadState.rx || ry !== lastWebGamepadState.ry ||
       up !== lastWebGamepadState.up || down !== lastWebGamepadState.down ||
       left !== lastWebGamepadState.left || right !== lastWebGamepadState.right ||
-      r1 !== lastWebGamepadState.r1 ||
+      gpBtnSnap !== lastWebGamepadState.r1 || speedChanged ||
       deadman !== lastWebGamepadState.deadman ||
-      aiToggle !== lastWebGamepadState.aiToggle ||
-      syncToggle !== lastWebGamepadState.syncToggle;
+      btnPlus !== lastWebGamepadState.btnPlus || btnMinus !== lastWebGamepadState.btnMinus ||
+      btnNorth !== lastWebGamepadState.btnNorth || btnWest !== lastWebGamepadState.btnWest;
 
     if (changed) {
       sendKeyboardCommand(true, true);
-      lastWebGamepadState = { lx, ly, rx, ry, up, down, left, right, r1, deadman, aiToggle, syncToggle };
+      lastWebGamepadState = { 
+        lx, ly, rx, ry, up, down, left, right, 
+        r1: gpBtnSnap, deadman, 
+        btnNorth, btnSouth, btnEast, btnWest, btnPlus, btnMinus 
+      };
     }
   }
 
