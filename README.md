@@ -1,7 +1,17 @@
-## Freenove 4WD Smart Car Kit (Picar-Vision)
+## PiCar-Vision
 
-> **Note:** This repository has been heavily customized to include a modern microservices architecture, a Rust-based Tauri frontend/backend (Desktop + iOS app), and YOLOv8 Autonomous Driving logic.
-> For instructions on deploying the mobile iOS app or troubleshooting Xcode errors (like `PhaseScriptExecution`), please read the **[iOS Deployment Guide](./docs/ios_deployment.md)**.
+> **Note:** This repository is a heavily customized fork of a generic 4WD smart car kit, modified to include a modern microservices architecture, a Rust-based Tauri frontend/backend (Desktop + iOS app), and YOLOv8 Autonomous Driving logic.
+
+**Disclaimer:** This project is an independent modification and is **not affiliated with, endorsed by, or representative of the Freenove company**. We do not provide user support for Freenove hardware products. For hardware inquiries, please refer to the original manufacturer.
+
+---
+
+### Architecture & Planning
+For a detailed breakdown of the microservices architecture, networking topologies, and planning/implementation trackers, please refer to the **[ARCHITECTURE.md](./ARCHITECTURE.md)** file in the project root. 
+
+For instructions on deploying the mobile iOS app or troubleshooting Xcode errors (like `PhaseScriptExecution`), please read the **[iOS Deployment Guide](./docs/ios_deployment.md)**.
+
+---
 
 ### Local Wi-Fi AP & Hardware Pairing
 If the Raspberry Pi gateway cannot connect to a known Wi-Fi network on boot, it will automatically broadcast a local AP hotspot:
@@ -9,104 +19,48 @@ If the Raspberry Pi gateway cannot connect to a known Wi-Fi network on boot, it 
 - **Password:** `picar-vision`
 
 Once connected to the AP network via the desktop or iOS app, you MUST perform a hardware pairing to unlock telemetry and control.
-**Pairing Procedure:** Toggle the Freenove base Motor Power switch OFF and ON twice. The backend will detect the voltage drop on the ADC and unlock control.
+**Pairing Procedure:** Toggle the car's physical motor power switch OFF and ON twice. The backend will detect the voltage drop on the ADC and unlock control.
 
+---
 
+### Mobile App Layout & Interaction
 
-> A 4WD smart car kit for Raspberry Pi.
+The mobile frontend is a unified interface built with Svelte and deployed natively to iOS using Tauri. It offers:
+* **Live Video Feed:** Displayed directly in the main view.
+* **Control Overlay:** Touch-based on-screen joysticks for driving and camera panning.
+* **Menus:** 
+  * Swipe down from the top handle to minimize the AI overlay.
+  * Tap the gear icon in the top right for calibration and motor/servo limits.
+* **Gamepad Support:** The app natively handles Bluetooth controllers (such as Xbox, PlayStation, and Nintendo Joy-Cons) via the Gamepad API.
 
-<div style="text-align: center;">
-  <img src='Picture/icon.png' width='45%' style='display:inline-block; margin-right:5px;'/>
-  <img src='Picture/icon1.png' width='40%' style='display:inline-block;'/>
-</div>
+---
 
-### Connection Board Version
-<table>
-  <tr>
-    <th>PCB Version</th>
-    <th>PCB Picture</th>
-  </tr>
-  <tr>
-    <td>V1.0</td>
-    <td align="center">
-      <img src='Picture/PCB_V1.0.png' width='30%' alt='V1.0'/>
-    </td>
-  </tr>
-  <tr>
-    <td>V2.0</td>
-    <td align="center">
-      <img src='Picture/PCB_V2.0.png' width='30%' alt='V2.0'/>
-    </td>
-  </tr>
-</table>
+### Gamepad Configuration
 
+When a physical controller is connected, the UI will acknowledge it and allow you to drive the car with standard dual analog sticks. The button mappings adapt based on your controller type.
 
-### Download
+#### 1. Dual Joy-Cons (or Standard Gamepads like Xbox/PlayStation)
+You get full mapping without compromises:
+* **Left Stick:** Drive (Throttle/Steering)
+* **Right Stick:** Camera Pan/Tilt
+* **L2, R2, or L1:** Deadman Switch (Hold to activate AI modes)
+* **Plus (+) / Start:** Toggles the Settings Menu
+* **Minus (-) / Select:** Toggles the AI Controls Overlay
+* **North (X/Y):** Toggle AI Autonomous Driving Mode
+* **West (Y/X):** Toggle Sync Steer vs Auto Drive
+* **Hold L1/R1 + East/South Face Buttons:** Adjust Motor/Servo Speeds dynamically
 
-* **Use command in console**
+#### 2. Single Joy-Con (Left or Right, held sideways)
+macOS treats a single Joy-Con as a "Micro Gamepad." Since there is only one stick, the layout is automatically remapped:
+* **Analog Stick:** Drive (Throttle/Steering)
+* **Face Buttons:** Acts as a D-Pad for Camera Pan/Tilt
+* **Top Shoulder (L/R):** Toggle AI Autonomous Driving Mode
+* **Bottom Trigger (ZL/ZR):** Toggle Sync Steer vs Auto Drive
+* **SL or SR:** Deadman Switch
+* **Plus or Minus (or Home/Capture):** Toggles Menus (Settings or AI Controls)
+* **Hold SL/SR + Face Buttons:** Temporarily overrides the camera D-Pad to adjust Motor/Servo speeds.
 
-	Run following command to download all the files in this repository.
+---
 
-	`git clone https://github.com/Freenove/Freenove_4WD_Smart_Car_Kit_for_Raspberry_Pi.git`
-
-* **Manually download in browser**
-
-	Click the green "Clone or download" button, then click "Download ZIP" button in the pop-up window.
-	Do NOT click the "Open in Desktop" button, it will lead you to install Github software.
-
-> If you meet any difficulties, please contact our support team for help.
-
-### Support
-
-Freenove provides free and quick customer support. Including but not limited to:
-
-* Quality problems of products
-* Using Problems of products
-* Questions of learning and creation
-* Opinions and suggestions
-* Ideas and thoughts
-
-Please send an email to:
-
-[support@freenove.com](mailto:support@freenove.com)
-
-We will reply to you within one working day.
-
-### Purchase
-
-Please visit the following page to purchase our products:
-
-http://store.freenove.com
-
-Business customers please contact us through the following email address:
-
-[sale@freenove.com](mailto:sale@freenove.com)
-
-### Copyright
-
-All the files in this repository are released under [Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported License](http://creativecommons.org/licenses/by-nc-sa/3.0/).
-
-![markdown](https://i.creativecommons.org/l/by-nc-sa/3.0/88x31.png)
-
-This means you can use them on your own derived works, in part or completely. But NOT for the purpose of commercial use.
-You can find a copy of the license in this repository.
-
-Freenove brand and logo are copyright of Freenove Creative Technology Co., Ltd. Can't be used without formal permission.
-
-
-### About
-
-Freenove is an open-source electronics platform.
-
-Freenove is committed to helping customer quickly realize the creative idea and product prototypes, making it easy to get started for enthusiasts of programing and electronics and launching innovative open source products.
-
-Our services include:
-
-* Robot kits
-* Learning kits for Arduino, Raspberry Pi and micro:bit
-* Electronic components and modules, tools
-* Product customization service
-
-Our code and circuit are open source. You can obtain the details and the latest information through visiting the following web site:
-
-http://www.freenove.com
+### Copyright & Licensing
+This software is provided "as is" and is released for educational and non-commercial purposes. Derived works must respect the open-source licenses of the underlying dependencies.
