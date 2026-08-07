@@ -448,7 +448,7 @@
   let lastFrameTime: number;
   let activeGamepadId: string | null = null;
   let autoSelectedPadId: string | null = null;
-  let lastWebGamepadState = { lx: 0, ly: 0, rx: 0, ry: 0, up: false, down: false, left: false, right: false, r1: false };
+  let lastWebGamepadState = { lx: 0, ly: 0, rx: 0, ry: 0, up: false, down: false, left: false, right: false, r1: false, deadman: false, aiToggle: false, syncToggle: false };
 
   function setGamepadMode(id: string | null) {
     activeGamepadId = id;
@@ -536,6 +536,10 @@
     let right = pad.buttons[15]?.pressed || false;
     const r1 = pad.buttons[5]?.pressed || false; // R1
 
+    let deadman = pad.buttons[7]?.pressed || pad.buttons[6]?.pressed || pad.buttons[4]?.pressed || false;
+    let aiToggle = pad.buttons[9]?.pressed || pad.buttons[11]?.pressed || false; // Start or R3
+    let syncToggle = pad.buttons[8]?.pressed || pad.buttons[10]?.pressed || false; // Select or L3
+
     // If it's a Single Joy-Con, fix its layout
     const isSingleJoyCon = pad.id.includes("Joy-Con (L)") || pad.id.includes("Joy-Con (R)");
     if (isSingleJoyCon) {
@@ -560,6 +564,16 @@
       right = pad.buttons[1]?.pressed || false; // Right button
     }
 
+    if (aiToggle && !lastWebGamepadState.aiToggle) {
+        isAutonomous = !isAutonomous;
+    }
+    if (syncToggle && !lastWebGamepadState.syncToggle) {
+        viewportTurn = !viewportTurn;
+    }
+    if (deadman !== lastWebGamepadState.deadman) {
+        deadmanActive = deadman;
+    }
+
     joystickX = lx;
     joystickY = ly;
     cameraX = rx;
@@ -576,11 +590,14 @@
       rx !== lastWebGamepadState.rx || ry !== lastWebGamepadState.ry ||
       up !== lastWebGamepadState.up || down !== lastWebGamepadState.down ||
       left !== lastWebGamepadState.left || right !== lastWebGamepadState.right ||
-      r1 !== lastWebGamepadState.r1;
+      r1 !== lastWebGamepadState.r1 ||
+      deadman !== lastWebGamepadState.deadman ||
+      aiToggle !== lastWebGamepadState.aiToggle ||
+      syncToggle !== lastWebGamepadState.syncToggle;
 
     if (changed) {
       sendKeyboardCommand(true, true);
-      lastWebGamepadState = { lx, ly, rx, ry, up, down, left, right, r1 };
+      lastWebGamepadState = { lx, ly, rx, ry, up, down, left, right, r1, deadman, aiToggle, syncToggle };
     }
   }
 
