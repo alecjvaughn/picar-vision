@@ -129,8 +129,13 @@ async def command_loop(websocket):
                         asyncio.create_task(client.send(message))
 
             if data.get("type") == "command":
+                buzzer_state = data.get("buzzer", False)
+                if "led" in data:
+                    current_led_mode = data.get("led", "off")
+                if buzzer: buzzer.run(buzzer_state)
+
                 if not is_paired:
-                    continue # Ignore all commands until pairing is complete
+                    continue # Ignore driving/camera commands until pairing is complete
                 
                 steering = data.get("steering", 0.0)
                 throttle = data.get("throttle", 0.0)
@@ -141,13 +146,8 @@ async def command_loop(websocket):
                 if "tilt" in data:
                     current_tilt = data["tilt"]
                     
-                buzzer_state = data.get("buzzer", False)
-                if "led" in data:
-                    current_led_mode = data.get("led", "off")
-                
                 if motor: motor.run(steering, throttle)
                 if servo: servo.run(current_pan, current_tilt)
-                if buzzer: buzzer.run(buzzer_state)
         except Exception as e:
             print(f"Command error: {e}")
 

@@ -251,7 +251,7 @@ pub async fn connect_to_pi(
                                                     current_tilt = 0.0;
                                                 }
 
-                                                if let Some(tb) = target_box {
+                                                if let Some(ref tb) = target_box {
                                                     // Process camera tracking
                                                     let cx = tb.x + (tb.width / 2.0);
                                                     let cy = tb.y + (tb.height / 2.0);
