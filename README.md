@@ -30,7 +30,8 @@ The mobile frontend is a unified interface built with Svelte and deployed native
 * **Control Overlay:** Touch-based on-screen joysticks for driving and camera panning.
 * **Menus:** 
   * Swipe down from the top handle to minimize the AI overlay.
-  * Tap the gear icon in the top right for calibration and motor/servo limits.
+  * Tap the **controller icon** in the top right for joystick calibration and adjusting motor/servo speed limits.
+  * Tap the **gear icon** in the top right to open Settings (includes network status, IP address, battery levels, connected backend diagnostics, and debug telemetry).
 * **Gamepad Support:** The app natively handles Bluetooth controllers (such as Xbox, PlayStation, and Nintendo Joy-Cons) via the Gamepad API.
 
 ---
