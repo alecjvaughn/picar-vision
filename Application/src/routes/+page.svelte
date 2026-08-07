@@ -545,6 +545,9 @@
       // Only set aiDebugInfo if we have something to say, or clear it if ai_off
       if (debugParts.length > 0) aiDebugInfo = debugParts.join(' | ');
       
+      if (event.payload.frame) {
+        videoBlobUrl = "data:image/jpeg;base64," + event.payload.frame;
+      }
     }));
 
     unlistens.push(await listen('json-message', (event: any) => {
@@ -552,11 +555,6 @@
         boundingBoxes = event.payload.boxes || [];
         // Update debug info for iOS client
         aiDebugInfo = `[Desktop Stream] Boxes: ${boundingBoxes.length}`;
-      }
-    }));
-      
-      if (event.payload.frame) {
-        videoBlobUrl = "data:image/jpeg;base64," + event.payload.frame;
       }
     }));
     

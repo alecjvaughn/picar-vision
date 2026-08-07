@@ -18,41 +18,63 @@ class CoreMLPlugin: Plugin {
     }
     
     private func setupModel(invoke: Invoke? = nil) {
-        var url = Bundle.main.url(forResource: "yolov8n", withExtension: "mlmodelc", subdirectory: "assets")
-        if url == nil {
-            url = Bundle.main.url(forResource: "yolov8n", withExtension: "mlmodelc")
-        }
-        if url == nil {
-            url = Bundle.main.url(forResource: "assets/yolov8n", withExtension: "mlmodelc")
-        }
-        if url == nil {
-            url = Bundle.main.url(forResource: "assets/yolov8n.mlmodelc", withExtension: nil)
-        }
-        
-        guard let modelURL = url else {
-            let fm = FileManager.default
-            let bundleRoot = Bundle.main.bundlePath
-            let contents = try? fm.contentsOfDirectory(atPath: bundleRoot)
-            let assetsContents = try? fm.contentsOfDirectory(atPath: bundleRoot + "/assets")
-            let debugStr = "Model not found. Root: \(contents?.prefix(5).description ?? "none"). Assets: \(assetsContents?.description ?? "none")"
-            print(debugStr)
-            invoke?.reject(debugStr)
-            return
-        }
-        do {
-            let mlModel = try MLModel(contentsOf: modelURL)
-            self.visionModel = try VNCoreMLModel(for: mlModel)
-        } catch {
-            print("Error loading CoreML model: \(error)")
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            guard let self = self else { return }
+            
+            var url = Bundle.main.url(forResource: "yolov8n", withExtension: "mlmodelc", subdirectory: "assets/assets")
+            if url == nil {
+                url = Bundle.main.url(forResource: "yolov8n", withExtension: "mlmodelc", subdirectory: "assets")
+            }
+            if url == nil {
+                url = Bundle.main.url(forResource: "yolov8n", withExtension: "mlmodelc")
+            }
+            if url == nil {
+                url = Bundle.main.url(forResource: "assets/yolov8n", withExtension: "mlmodelc")
+            }
+            if url == nil {
+                url = Bundle.main.url(forResource: "assets/yolov8n.mlmodelc", withExtension: nil)
+            }
+            
+            guard let modelURL = url else {
+                let fm = FileManager.default
+                let bundleRoot = Bundle.main.bundlePath
+                let contents = try? fm.contentsOfDirectory(atPath: bundleRoot)
+                let assetsContents = try? fm.contentsOfDirectory(atPath: bundleRoot + "/assets")
+                let debugStr = "Model not found. Root: \(contents?.prefix(5).description ?? "none"). Assets: \(assetsContents?.description ?? "none")"
+                print(debugStr)
+                invoke?.reject(debugStr)
+                return
+            }
+            do {
+                // First, try loading with default configuration (.all) which prefers the Neural Engine
+                let configAll = MLModelConfiguration()
+                let mlModel = try MLModel(contentsOf: modelURL, configuration: configAll)
+                self.visionModel = try VNCoreMLModel(for: mlModel)
+                print("Successfully loaded CoreML model with Neural Engine (default config).")
+                invoke?.resolve()
+            } catch {
+                print("Failed to load CoreML model with Neural Engine: \(error.localizedDescription). Falling back to CPU/GPU...")
+                
+                do {
+                    // Fallback to CPU and GPU only
+                    let configFallback = MLModelConfiguration()
+                    configFallback.computeUnits = .cpuAndGPU
+                    let mlModelFallback = try MLModel(contentsOf: modelURL, configuration: configFallback)
+                    self.visionModel = try VNCoreMLModel(for: mlModelFallback)
+                    print("Successfully loaded CoreML model with CPU/GPU fallback.")
+                    invoke?.resolve()
+                } catch let fallbackError {
+                    let errorMsg = "Error loading CoreML model (both ANE and CPU/GPU failed): \(fallbackError.localizedDescription)"
+                    print(errorMsg)
+                    invoke?.reject(errorMsg)
+                }
+            }
         }
     }
     
     @objc public func runInference(_ invoke: Invoke) throws {
-        if self.visionModel == nil {
-            self.setupModel(invoke: invoke)
-        }
         guard let visionModel = self.visionModel else {
-            // Error is already sent by setupModel(invoke:)
+            invoke.reject("CoreML model is still loading or failed to load. Please try again in a moment.")
             return
         }
         
@@ -95,10 +117,19 @@ class CoreMLPlugin: Plugin {
                         "height": height
                     ])
                 }
-                invoke.resolve(["boxes": resultsArray])
+                let thermalState = ProcessInfo.processInfo.thermalState.rawValue
+                
+                invoke.resolve([
+                    "boxes": resultsArray,
+                    "thermalState": thermalState
+                ])
             } else {
                 // Not recognized object format, maybe MLMultiArray
-                invoke.resolve(["boxes": resultsArray])
+                let thermalState = ProcessInfo.processInfo.thermalState.rawValue
+                invoke.resolve([
+                    "boxes": resultsArray,
+                    "thermalState": thermalState
+                ])
             }
         }
         

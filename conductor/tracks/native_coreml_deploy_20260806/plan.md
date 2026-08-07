@@ -14,12 +14,12 @@
     - [ ] Sub-task: Verify the iOS app successfully prompts for network access and connects to the backend.
 
 ## Phase 3: CoreML Integration & Fallback Strategies
-- [ ] Task: Conduct Research on CoreML integration.
-    - [ ] Sub-task: Perform targeted research (via NotebookLM or web) on `.mlmodelc` bundling with Tauri and memory limits of ANE on A13 Bionic.
-- [ ] Task: Implement ANE Fallback in Swift Plugin.
-    - [ ] Sub-task: Update `CoreMLPlugin.swift` to attempt loading with `MLComputeUnits.all` (ANE).
-    - [ ] Sub-task: Implement robust `catch` block to fallback to `MLComputeUnits.cpuAndGPU` if ANE compilation or loading fails.
-- [ ] Task: Model Packaging & Optimization.
-    - [ ] Sub-task: Package the `.mlmodelc` inside the iOS app bundle using the most optimal strategy for the iPhone SE 2020 storage/memory constraints.
-- [ ] Task: Test native CoreML inference.
-    - [ ] Sub-task: Verify YOLOv8 inference runs directly on the device using the Swift CoreML plugin without crashing.
+- [x] Task: Conduct Research on CoreML integration.
+    - [x] Sub-task: Perform targeted research (via NotebookLM or web) on `.mlmodelc` bundling with Tauri and memory limits of ANE on A13 Bionic.
+- [x] Task: Implement ANE Fallback in Swift Plugin.
+    - [x] Sub-task: Update `CoreMLPlugin.swift` to attempt loading with `MLComputeUnits.all` (ANE).
+    - [x] Sub-task: Implement robust `catch` block to fallback to `MLComputeUnits.cpuAndGPU` if ANE compilation or loading fails.
+- [x] Task: Model Packaging & Optimization.
+    - [x] Sub-task: Package the `.mlmodelc` inside the iOS app bundle using the most optimal strategy for the iPhone SE 2020 storage/memory constraints.
+- [x] Task: Test native CoreML inference.
+    - [x] Sub-task: Verify YOLOv8 inference runs directly on the device using the Swift CoreML plugin without crashing.

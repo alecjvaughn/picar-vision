@@ -21,4 +21,5 @@ pub struct BoundingBox {
 #[serde(rename_all = "camelCase")]
 pub struct InferenceResponse {
     pub boxes: Vec<BoundingBox>,
+    pub thermal_state: i32,
 }

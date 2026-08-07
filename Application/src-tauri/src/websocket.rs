@@ -38,9 +38,13 @@ pub async fn connect_to_pi(
     });
 
     let vision = vision_state.inner().clone();
-
+    
     // Task for reading messages
     tokio::spawn(async move {
+        let mut last_inference_time = std::time::Instant::now();
+        let mut current_thermal_state = 0;
+        let mut current_pan = 0.0_f32;
+        let mut current_tilt = 0.0_f32;
         app.emit("ws-connected", ()).unwrap();
 
         while let Some(Ok(msg)) = read.next().await {
@@ -80,41 +84,58 @@ pub async fn connect_to_pi(
                                             {
                                                 use tauri_plugin_coreml::{CoremlExt, InferenceRequest};
                                                 
-                                                let payload = InferenceRequest {
-                                                    image_base64: frame_str.to_string(),
+                                                // Thermal monitor: drop frames if inference is too frequent
+                                                // 0 = Nominal, 1 = Fair, 2 = Serious, 3 = Critical
+                                                let min_interval = match current_thermal_state {
+                                                    3 => 1000, // Critical: 1 FPS
+                                                    2 => 333,  // Serious: ~3 FPS
+                                                    1 => 150,  // Fair: ~6 FPS
+                                                    _ => 80,   // Nominal: ~12 FPS
                                                 };
                                                 
-                                                match app.coreml().run_inference(payload) {
-                                                    Ok(results) => {
-                                                        let mut boxes = Vec::new();
-                                                        // Get image dimensions from base64 string
-                                                        let mut img_w = 640.0;
-                                                        let mut img_h = 480.0;
-                                                        if let Ok(img_bytes) = base64::Engine::decode(&base64::engine::general_purpose::STANDARD, frame_str) {
-                                                            if let Ok(img) = image::load_from_memory(&img_bytes) {
-                                                                img_w = img.width() as f32;
-                                                                img_h = img.height() as f32;
+                                                if last_inference_time.elapsed().as_millis() >= min_interval {
+                                                    let payload = InferenceRequest {
+                                                        image_base64: frame_str.to_string(),
+                                                    };
+                                                    
+                                                    match app.coreml().run_inference(payload) {
+                                                        Ok(results) => {
+                                                            last_inference_time = std::time::Instant::now();
+                                                            current_thermal_state = results.thermal_state;
+                                                            let mut boxes = Vec::new();
+                                                            // Get image dimensions from base64 string
+                                                            let mut img_w = 640.0;
+                                                            let mut img_h = 480.0;
+                                                            if let Ok(img_bytes) = base64::Engine::decode(&base64::engine::general_purpose::STANDARD, frame_str) {
+                                                                if let Ok(img) = image::load_from_memory(&img_bytes) {
+                                                                    img_w = img.width() as f32;
+                                                                    img_h = img.height() as f32;
+                                                                }
                                                             }
+                                                            
+                                                            for r in results.boxes {
+                                                                boxes.push(crate::vision::BoundingBox {
+                                                                    x: r.x * img_w,
+                                                                    y: r.y * img_h,
+                                                                    width: r.width * img_w,
+                                                                    height: r.height * img_h,
+                                                                    confidence: r.confidence,
+                                                                    class_id: 0,
+                                                                    label: r.label,
+                                                                });
+                                                                if r.confidence > max_conf { max_conf = r.confidence; }
+                                                            }
+                                                            let state_str = match current_thermal_state { 0=>"Nominal", 1=>"Fair", 2=>"Serious", _=>"Critical" };
+                                                            json.as_object_mut().unwrap().insert("shape".to_string(), serde_json::Value::String(format!("[CoreML - {}]", state_str)));
+                                                            resolved_boxes = Some(boxes);
                                                         }
-                                                        
-                                                        for r in results.boxes {
-                                                            boxes.push(crate::vision::BoundingBox {
-                                                                x: r.x * img_w,
-                                                                y: r.y * img_h,
-                                                                width: r.width * img_w,
-                                                                height: r.height * img_h,
-                                                                confidence: r.confidence,
-                                                                class_id: 0,
-                                                                label: r.label,
-                                                            });
-                                                            if r.confidence > max_conf { max_conf = r.confidence; }
+                                                        Err(e) => {
+                                                            json.as_object_mut().unwrap().insert("error".to_string(), serde_json::Value::String(format!("CoreML error: {:?}", e)));
                                                         }
-                                                        json.as_object_mut().unwrap().insert("shape".to_string(), serde_json::Value::String("[CoreML]".to_string()));
-                                                        resolved_boxes = Some(boxes);
                                                     }
-                                                    Err(e) => {
-                                                        json.as_object_mut().unwrap().insert("error".to_string(), serde_json::Value::String(format!("CoreML error: {:?}", e)));
-                                                    }
+                                                } else {
+                                                    // Skip inference for this frame, retain previous boxes if needed (not implemented here since UI handles fading)
+                                                    json.as_object_mut().unwrap().insert("shape".to_string(), serde_json::Value::String("[Skipped Frame]".to_string()));
                                                 }
                                             }
                                             
@@ -153,29 +174,33 @@ pub async fn connect_to_pi(
                                                     throttle = 0.0;
                                                     steering = 0.0;
                                                 } else if let Some(tb) = target_box {
-                                                    // Center is x=320 (assuming 640x640 frame)
+                                                    // Center is x=320 (assuming 640x480 frame)
                                                     let cx = tb.x + (tb.width / 2.0);
-                                                    let offset = (cx - 320.0) / 320.0; // -1 to 1
+                                                    let cy = tb.y + (tb.height / 2.0);
+                                                    let x_offset = (cx - 320.0) / 320.0; // -1 to 1
+                                                    let y_offset = (cy - 240.0) / 240.0; // -1 to 1
                                                     
-                                                    // Deadzone for steering
-                                                    if offset.abs() > 0.1 {
-                                                        steering = offset;
+                                                    if x_offset.abs() > 0.1 {
+                                                        current_pan += (x_offset * 0.15) as f32;
+                                                    }
+                                                    if y_offset.abs() > 0.1 {
+                                                        current_tilt -= (y_offset * 0.15) as f32;
                                                     }
                                                     
-                                                    let area = tb.width * tb.height;
-                                                    if area < 30000.0 {
-                                                        throttle = 0.6; // move forward
-                                                    } else if area > 80000.0 {
-                                                        throttle = -0.6; // too close, back up
-                                                    } else {
-                                                        throttle = 0.0;
-                                                    }
+                                                    current_pan = current_pan.clamp(-1.0, 1.0);
+                                                    current_tilt = current_tilt.clamp(-1.0, 1.0);
+                                                    
+                                                    // Test object detection separated from motors
+                                                    throttle = 0.0;
+                                                    steering = 0.0;
                                                 }
                                                 
                                                 let cmd = serde_json::json!({
                                                     "type": "command",
                                                     "throttle": throttle,
-                                                    "steering": steering
+                                                    "steering": steering,
+                                                    "pan": current_pan,
+                                                    "tilt": current_tilt
                                                 });
                                                 cmd_to_send = Some(cmd.to_string());
                                                 

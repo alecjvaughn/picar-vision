@@ -28,7 +28,7 @@ impl<R: Runtime> Coreml<R> {
   pub fn run_inference(&self, payload: InferenceRequest) -> crate::Result<InferenceResponse> {
     self
       .0
-      .run_mobile_plugin("run_inference", payload)
+      .run_mobile_plugin("runInference", payload)
       .map_err(Into::into)
   }
 }
