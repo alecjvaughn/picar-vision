@@ -52,3 +52,8 @@ This file tracks all major development tracks for the `picar-vision` project. Ea
 
 - [x] **Track: Dual App Setup & Bounding Box Broadcasting**
 *Link: [./tracks/dual_app_setup/](./tracks/dual_app_setup/)*
+
+---
+
+- [ ] **Track: use notebooklm c07ee482-b62a-4dac-bf9c-de31acd507c1 research to refine the Swift/Rust/Tauri app with CoreML running locally on my iPhone SE 2020 and fix deployment issues.**
+*Link: [./tracks/native_coreml_deploy_20260806/](./tracks/native_coreml_deploy_20260806/)*
