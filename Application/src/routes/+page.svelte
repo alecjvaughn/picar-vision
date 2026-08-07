@@ -828,7 +828,7 @@
           </div>
 
           <!-- Play/Pause Deadman -->
-          <button class="icon-btn" style="width: 44px; height: 44px; border-radius: 50%; font-size: 1.2rem; background: {deadmanActive ? 'var(--accent-primary)' : 'rgba(255,255,255,0.1)'}; color: {deadmanActive ? '#000' : '#fff'}; display: flex; align-items: center; justify-content: center; border: 1px solid rgba(255,255,255,0.2); transition: all 0.2s;" onclick={(e) => { deadmanActive = !deadmanActive; e.preventDefault(); }}>
+          <button class="icon-btn" style="width: 44px; height: 44px; border-radius: 50%; font-size: 1.2rem; background: {deadmanActive ? 'var(--accent-primary)' : 'rgba(255,255,255,0.1)'}; color: {deadmanActive ? '#000' : '#fff'}; display: flex; align-items: center; justify-content: center; border: 1px solid rgba(255,255,255,0.2); transition: all 0.2s; touch-action: none; user-select: none;" onpointerdown={(e) => { deadmanActive = true; e.preventDefault(); }} onpointerup={(e) => { deadmanActive = false; e.preventDefault(); }} onpointercancel={(e) => { deadmanActive = false; e.preventDefault(); }} oncontextmenu={(e) => e.preventDefault()}>
             {deadmanActive ? '⏸' : '▶'}
           </button>
 
