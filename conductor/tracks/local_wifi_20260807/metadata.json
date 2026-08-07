@@ -1,0 +1,8 @@
+{
+  "track_id": "local_wifi_20260807",
+  "type": "feature",
+  "status": "new",
+  "created_at": "2026-08-07T14:24:00Z",
+  "updated_at": "2026-08-07T14:24:00Z",
+  "description": "implement a local wifi feature in the gateway so I can connect freely without another network connection. Toggle the motor power switch twice to confirm the connection."
+}

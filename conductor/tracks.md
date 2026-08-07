@@ -57,3 +57,8 @@ This file tracks all major development tracks for the `picar-vision` project. Ea
 
 - [~] **Track: use notebooklm c07ee482-b62a-4dac-bf9c-de31acd507c1 research to refine the Swift/Rust/Tauri app with CoreML running locally on my iPhone SE 2020 and fix deployment issues.**
 *Link: [./tracks/native_coreml_deploy_20260806/](./tracks/native_coreml_deploy_20260806/)*
+
+---
+
+- [ ] **Track: implement a local wifi feature in the gateway so I can connect freely without another network connection. Toggle the motor power switch twice to confirm the connection.**
+*Link: [./tracks/local_wifi_20260807/](./tracks/local_wifi_20260807/)*
