@@ -220,7 +220,7 @@ pub async fn connect_to_pi(
                                                 > = None;
 
                                                 for b in &boxes {
-                                                    if b.label == target {
+                                                    if target == "none" || b.label == target {
                                                         if target_box.is_none()
                                                             || b.confidence
                                                                 > target_box
@@ -278,17 +278,17 @@ pub async fn connect_to_pi(
                                                     let stop_dist = 25.0;
                                                     let default_speed = 0.30;
                                                     
-                                                    if let Some(_) = target_box {
+                                                    if let Some(ref tb) = target_box {
                                                         steering = current_pan;
                                                         if distance > safe_dist {
                                                             throttle = default_speed;
-                                                            debug_msg = format!("Tracking {} | Dist: {:.1}cm", target, distance);
+                                                            debug_msg = format!("Tracking {} | Dist: {:.1}cm", tb.label, distance);
                                                         } else if distance > stop_dist {
                                                             throttle = 0.0;
-                                                            debug_msg = format!("{} Reached | Dist: {:.1}cm", target, distance);
+                                                            debug_msg = format!("{} Reached | Dist: {:.1}cm", tb.label, distance);
                                                         } else {
                                                             throttle = -default_speed;
-                                                            debug_msg = format!("Too Close to {}, Reversing! | Dist: {:.1}cm", target, distance);
+                                                            debug_msg = format!("Too Close to {}, Reversing! | Dist: {:.1}cm", tb.label, distance);
                                                         }
                                                     } else {
                                                         // Fallback to ultrasonic scan/avoid
