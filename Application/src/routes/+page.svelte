@@ -287,15 +287,22 @@
       dx /= distance;
       dy /= distance;
     }
+
+    dx = Math.round(dx * 20) / 20;
+    dy = Math.round(dy * 20) / 20;
     
+    let changed = false;
     if (stick === 'L') {
+      if (dragX !== dx || dragY !== dy) changed = true;
       dragX = dx;
       dragY = dy;
     } else {
+      if (camDragX !== dx || camDragY !== dy) changed = true;
       camDragX = dx;
       camDragY = dy;
     }
-    sendKeyboardCommand();
+    
+    if (changed) sendKeyboardCommand();
   }
 
   async function sendKeyboardCommand(includeCamera = false, isManualInput = false) {
