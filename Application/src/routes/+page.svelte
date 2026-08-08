@@ -535,10 +535,11 @@
     controllerType = joyconType;
 
     const deadzone = 0.1;
-    let lx = Math.abs(pad.axes[0]) < deadzone ? 0 : pad.axes[0];
-    let ly = Math.abs(pad.axes[1]) < deadzone ? 0 : pad.axes[1];
-    let rx = Math.abs(pad.axes[2]) < deadzone ? 0 : pad.axes[2];
-    let ry = Math.abs(pad.axes[3]) < deadzone ? 0 : pad.axes[3];
+    const roundAxis = (val) => Math.abs(val) < deadzone ? 0 : Math.round(val * 20) / 20;
+    let lx = roundAxis(pad.axes[0]);
+    let ly = roundAxis(pad.axes[1]);
+    let rx = roundAxis(pad.axes[2]);
+    let ry = roundAxis(pad.axes[3]);
 
     let up = pad.buttons[12]?.pressed || false;
     let down = pad.buttons[13]?.pressed || false;
