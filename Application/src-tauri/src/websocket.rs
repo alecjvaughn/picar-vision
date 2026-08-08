@@ -274,8 +274,8 @@ pub async fn connect_to_pi(
                                                 }
 
                                                 if deadman {
-                                                    let safe_dist = 40.0;
-                                                    let stop_dist = 25.0;
+                                                    let safe_dist = 60.0;
+                                                    let stop_dist = 35.0;
                                                     let default_speed = 0.30;
                                                     
                                                     if let Some(ref tb) = target_box {
@@ -297,9 +297,9 @@ pub async fn connect_to_pi(
                                                             steering = 0.0;
                                                             debug_msg = format!("Scanning for {}... Clear: {:.1}cm", target, distance);
                                                         } else if distance > stop_dist {
-                                                            throttle = default_speed;
+                                                            throttle = -0.25; // Back up while turning instead of driving forward
                                                             steering = 1.0; 
-                                                            debug_msg = format!("Obstacle Detected, Turning | Dist: {:.1}cm", distance);
+                                                            debug_msg = format!("Obstacle Detected, Backing & Turning | Dist: {:.1}cm", distance);
                                                             
                                                             // Scan camera horizontally while turning
                                                             if current_pan > 0.0 {
